@@ -1,0 +1,45 @@
+
+export interface IRO {    
+    ApprovalNoteNo?:any;
+    SAPNo?:any;
+    MovementReason?:any;
+    Status?:any;
+    Stage?:any;
+    NAID?:any;
+    NATitle?:any;
+    NAEmail?:any;
+    DAID?:any;
+    DATitle?:any;
+    DAEmail?:any;
+    Details?:any;
+    Summary?:any;
+    WF?:any;
+    HeaderName?:any;
+    MovementType?:any;
+    Department?:any;
+    CostCenter?:any;
+    UniquePartImpact?:any;
+    GrossValue?:any;
+    NetValue?:any;
+    LastAction?:any;
+    CostCenterDescription?:any; 
+    AttachmentFiles?:any;
+    ID?:any;
+    Title?:any;
+    Author?:any;
+    Created?:any;
+    NextApproverEmpID?:any;
+    InitiatorEmpId?:any;
+    DelegateApproverEmpID?:any;
+    InventoryAttachment?:any;
+    VendorName?: any;
+    VendorCode?: any;
+    PONumber?: any;
+    POAmount?: any;
+    POBalanceAmount?: any;
+    POStartDate?: any;
+    POEndDate?: any;
+    RefPRNo?: any;
+    BudgetLineItem?: any;
+    docStatus?: any;
+}

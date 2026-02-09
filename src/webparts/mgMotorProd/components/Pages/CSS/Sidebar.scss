@@ -1,0 +1,226 @@
+.sidebar {
+  width: 250px;
+  background-color: #ce0b0e;
+  color: white;
+  height: 100vh;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, sans-serif;
+  position: sticky;
+  top: 0;
+}
+
+.sidehead {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sidehead img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.logo {
+  font-size: 24px;
+  margin: 0px 0px 0px 10px;
+  font-weight: bold;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sidehead-user {
+  display: flex;
+  align-items: center;
+  padding: 10px 0px;
+  border-bottom: 1px solid hsla(0, 0%, 100%, .2);
+  font-weight: 600;
+}
+
+.sidehead-user i {
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 10px;
+  border-radius: 50%;
+}
+
+.nav {
+  list-style: none;
+  padding: 0;
+  flex-grow: 1;
+  display: flex; // ✅ Ensures flexbox layout
+  flex-direction: column; // ✅ Stack items vertically
+}
+
+.nav-item {
+  margin: 0;
+  border-bottom: 3px solid hsl(0deg 45% 67% / 30%);   
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 20px;
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.3s ease;
+  user-select: none;
+}
+
+
+.nav-link.active {
+  font-weight: bold;
+  background: linear-gradient(to right, #000000, #d60000);
+}
+
+
+.nav-link.active::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 0;
+  border-top: 17px solid transparent;
+  border-bottom: 17px solid transparent;
+  border-right: 17px solid #dddddd;
+  z-index: 1;
+}
+
+.nav-link.active::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: -1px;
+  border-top: 17px solid transparent;
+  border-bottom: 17px solid transparent;
+  border-right: 17px solid #f4f3ef;
+  z-index: 2;
+}
+
+#spCommandBar,
+#spSiteHeader,
+#spLeftNav,
+.ommandBarWrapper,
+.sp-appBar,
+#CommentsWrapper {
+  display: none !important;
+}
+
+.CanvasZoneSectionContainer {
+  max-width: 100% !important;
+}
+
+#mainContainer,
+#mainContainer * {
+  font-size: 100% !important;
+}
+
+
+/* ===== Submenu Opens to the Right ===== */
+
+.nav-item.has-submenu {
+  position: relative;
+
+  &:hover .sub-menu {
+    display: block;
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+  }
+}
+
+.sub-menu {
+  position: absolute;
+  top: 0px;
+  /* Align with top of parent item */
+  left: 100%;
+  /* Push to the right of parent */
+  background-color: #ce0b0e;
+  min-width: 180px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid #fff;
+  box-shadow: 4px 0 8px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(10px);
+  /* Slide from right */
+  transition: all 0.2s ease-in-out;
+  z-index: 999;
+}
+
+.sub-menu li {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sub-menu li a {
+  display: block;
+  padding: 12px 20px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* Highlight the active tab and arrow effect */
+.nav-item.has-submenu.active>.nav-link {
+  font-weight: bold;
+  background: linear-gradient(to right, #000000, #d60000);
+}
+
+.nav-item.has-submenu.active::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: -1px;
+  border-top: 17px solid transparent;
+  border-bottom: 17px solid transparent;
+  border-right: 17px solid #f4f3ef;
+  z-index: 2;
+}
+
+.nav-item.has-submenu.settings:hover .sub-menu {
+  display: block;
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Special case: Settings submenu opens above instead of right */
+.nav-item.has-submenu.settings .sub-menu {
+  top: -170px;
+  height: 240px;
+  overflow-y: auto;
+  left: 100%;
+  bottom: 0;
+  // left: 100%;
+  // transform: translateY(-100%);
+}
+
+.sub-menu-title {
+  display: block;
+  padding: 10px 5px;
+  font-weight: bold;
+  background-color: hsl(0deg 0% 3.94% / 30%); // Light transparent white
+  color: #fff;
+  font-size: 13px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: none; // Prevents it from being hovered like a link
+}
+
+ .CanvasZone,
+  .ControlZone,
+  #workbenchPageContent {
+    width: 100% !important;
+    max-width: 100% !important;
+  } 

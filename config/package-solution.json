@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "mg-motor-prod-client-side-solution",
+    "id": "5aa53eab-ff45-48ea-9321-82dfd32b3a22",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.20.0"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "MGMotorProd description"
+      },
+      "longDescription": {
+        "default": "MGMotorProd description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "mg-motor-prod Feature",
+        "description": "The feature that activates elements of the mg-motor-prod solution.",
+        "id": "b11ad4df-27a0-4219-9ee1-60d1b978f32f",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/mg-motor-prod.sppkg"
+  }
+}

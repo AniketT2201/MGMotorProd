@@ -1,0 +1,316 @@
+@import '~@fluentui/react/dist/sass/References.scss';
+#spCommandBar,
+#spSiteHeader,
+#spLeftNav,
+.CommandBarWrapper,
+.sp-appBar,
+#CommentsWrapper {
+  display: none !important;
+}
+.CanvasZone {
+  padding: 0 !important;
+
+}
+
+.ControlZone {
+  margin-top: 0 !important;
+  padding: 0 !important;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+#workbenchPageContent {
+  max-width: 100% !important;
+}
+
+#workbenchPageContent>div>div>div {
+  padding: 0 !important;
+}
+
+
+/* ================================
+   MGMotorTheme.css
+================================ */
+
+/* ------------------------
+   1. Color Palette
+------------------------ */
+:root {
+  --mg-red-primary: #d10000;     /* Main MG red */
+  --mg-red-dark: #a00000;        /* Hover/Active red */
+  --mg-red-light: #f2dede;       /* Highlight / alerts */
+  --mg-gray-light: #f8f9fa;      /* Backgrounds */
+  --mg-gray: #e9ecef;            /* Borders / subtle panels */
+  --mg-gray-dark: #495057;       /* Text / secondary content */
+  --mg-text: #333;               /* Main text */
+}
+
+/* ------------------------
+   2. Body / Typography
+------------------------ */
+body {
+  font-family: 'Arial', sans-serif;
+  color: var(--mg-text);
+  background-color: var(--mg-gray-light);
+  margin: 0;
+  padding: 0;
+}
+
+.mg-main-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--mg-red-primary);
+  margin: 20px 0;
+}
+
+/* ------------------------
+   3. Buttons
+------------------------ */
+.mg-btn {
+  display: inline-block;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: all 0.2s ease-in-out;
+  user-select: none;
+  border: 1px solid transparent;
+  margin: 0.5rem
+}
+
+.mg-btn-primary {
+  background-color: var(--mg-red-primary);
+  color: #fff;
+  border-color: var(--mg-red-primary);
+}
+
+.mg-btn-primary:hover,
+.mg-btn-primary:focus {
+  background-color: var(--mg-red-dark);
+  border-color: var(--mg-red-dark);
+}
+
+.mg-btn-default {
+  background-color: #d7d7d7;
+  color: var(--mg-text);
+  border-color: var(--mg-gray);
+}
+
+.mg-btn-default:hover,
+.mg-btn-default:focus {
+  background-color: var(--mg-gray-light);
+}
+
+/* Button spacing helper */
+.mg-btn-row {
+  margin-bottom: 10px;
+}
+
+/* ------------------------
+   4. Tables
+------------------------ */
+.mg-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+  color: var(--mg-text);
+  margin-bottom: 1rem;
+}
+
+.mg-table th,
+.mg-table td {
+  padding: 10px 12px;
+  border: 1px solid var(--mg-gray);
+  font-size: 14px;
+}
+
+.mg-table th {
+  font-weight: 600;
+  background-color: var(--mg-gray);
+  color: var(--mg-gray-dark);
+}
+
+.mg-table-bordered {
+  border: 1px solid var(--mg-gray);
+}
+
+.mg-table-bordered th,
+.mg-table-bordered td {
+  border: 1px solid var(--mg-gray);
+}
+
+/* ------------------------
+   5. Forms
+------------------------ */
+.mg-form-control {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--mg-gray);
+  font-size: 14px;
+  color: var(--mg-gray-dark);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+// .mg-form-control:focus {
+//   border-color: var(--mg-red-primary);
+//   box-shadow: 0 0 0 0.2rem rgba(209, 0, 0, 0.25);
+// }
+
+.mg-required {
+  color: red;
+}
+
+.mg-txtFullWidth {
+  width: 100%;
+}
+
+/* ------------------------
+   6. Modals
+------------------------ */
+.mg-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1050;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto;
+}
+
+.mg-modal-content {
+  background-color: #fff;
+  border-radius: 6px;
+  max-width: 600px;
+  width: 90%;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+
+.mg-modal-header {
+  background-color: var(--mg-red-primary);
+  color: #fff;
+  padding: 1rem;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mg-modal-body {
+  padding: 1rem;
+}
+
+.mg-modal-footer {
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background-color: var(--mg-gray-light);
+  border-top: 1px solid var(--mg-gray);
+}
+
+.mg-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* ------------------------
+   7. Grid System (Bootstrap-free)
+------------------------ */
+.mg-container {
+  width: 100%;
+  padding: 0 15px;
+  margin: 0 auto;
+  background: #f7f7f7
+}
+
+.mg-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.mg-col-3 {
+  flex: 0 0 25%;
+  max-width: 25%;
+  padding: 0 15px;
+}
+
+.mg-col-9 {
+  flex: 0 0 75%;
+  max-width: 75%;
+  padding: 0 15px;
+}
+
+.mg-col-12 {
+  flex: 0 0 100%;
+  max-width: 100%;
+  padding: 0 15px;
+}
+
+/* ------------------------
+   8. Row Headers / Titles
+------------------------ */
+.mg-row-header {
+  font-weight: bold;
+  font-size: 32px; 
+  background: linear-gradient(90deg, #b30000, #ff0000);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text; /* For non-webkit browsers */
+  display: inline-block;
+}
+
+/* ------------------------
+   9. Utility Classes
+------------------------ */
+.mg-marginTop10 {
+  margin-top: 10px;
+}
+
+.mg-top-buffer {
+  margin-top: 20px;
+}
+
+.mg-noBorder {
+  border-top: 0 !important;
+}
+
+/* Fixed modal size */
+.modal-fixed {
+  max-width: 750px !important;      /* fixed width */
+  width: 100%;
+}
+
+/* Never overflow viewport */
+@media (max-width: 991px) {
+  .modal-fixed {
+    max-width: 95vw;
+  }
+}
+
+/* Fixed height */
+.modal-fixed .modal-content {
+  height: 70vh;
+}
+
+/* Scroll only body */
+.modal-fixed .modal-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.modal-fixed .modal-body {
+  overflow: auto;
+}

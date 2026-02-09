@@ -1,0 +1,63 @@
+// .container {
+//   display: flex;
+//   flex-direction: row;
+//   height: 100vh;
+//   width: 100%;
+//   // overflow: hidden;
+// }
+.container-fluid{
+  padding: 0px !important ;
+}
+.j_b_8474018e{
+  max-width: 100% !important;
+  margin: 0px !important;
+}
+#mainContainer{
+  padding: 0px !important;
+}
+.l_b_d71df89c{
+  overflow-y: hidden;
+}
+.main {
+  flex-grow: 1;  
+  background-color: #f4f3ef;  
+  //overflow-y: auto;  
+  width: calc(100% - 250px);
+  //padding-left: 10px ;
+  padding:10px;
+}
+#spTopPlaceholder{
+  display: none !important;
+}
+#SuiteNavWrapper{
+  display: none !important;
+}
+.a_a_cb6f7c2e:not(.b_a_cb6f7c2e):not(.c_a_cb6f7c2e){
+  margin: 0px !important;
+}
+.CanvasZone {
+  padding: 0px !important;
+}
+.CanvasZoneSectionContainer {
+  padding: 0px !important;
+}
+.ControlZone {
+  padding: 0px !important;
+}
+.CanvasSection {
+  padding: 0px !important;
+}
+#spCommandBar,
+      #spSiteHeader,
+  #spLeftNav,
+  .ommandBarWrapper,
+  .sp-appBar,
+  #CommentsWrapper
+  {
+        display: none !important;
+      }
+
+.ControlZone{
+  margin:0px !important
+}
+
