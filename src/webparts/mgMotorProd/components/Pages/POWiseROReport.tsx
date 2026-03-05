@@ -22,6 +22,7 @@ interface RORow {
 interface POWiseRow {
   PONumber: string;
   VendorName: string;
+  Department: string;
   CostCenter: string;
   POStartDate: string;
   POEndDate: string;
@@ -52,6 +53,7 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
     const [columnFilters, setColumnFilters] = useState({
         PONumber: "",
         VendorName: "",
+        Department: "",
         CostCenter: "",
         POStartDate: "",
         POEndDate: ""
@@ -61,6 +63,7 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
         setColumnFilters({
             PONumber: "",
             VendorName: "",
+            Department: "",
             CostCenter: "",
             POStartDate: "",
             POEndDate: ""
@@ -125,105 +128,206 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
         return date.toLocaleDateString('en-GB'); // dd/mm/yyyy
     };
 
-    const GetROData = async () => {
-        await EmployeeProfile(props.userEmail);
-        setLoading(true);
-        const ROColl = await RORequestsOps().getIROData(
+    // const GetROData = async () => {
+    //     await EmployeeProfile(props.userEmail);
+    //     setLoading(true);
+    //     const ROColl = await RORequestsOps().getIROData(
+    //         { column: "ID", isAscending: false },
+    //         props,
+    //         ''
+    //     );
+    //     let ROCollFilter = ROColl.filter((test) => test.Status != "Draft" && test.Status != "Withdrawn" && test.Status != "Reject");
+    //     const normalizedRO = ROCollFilter.map((ro) => {
+    //         let poNumber = "-";
+
+    //         try {
+    //             const poArr = JSON.parse(ro.PODetails);
+    //             poNumber = poArr?.[0]?.PONumber ?? "-";
+    //         } catch (err) {
+    //             console.warn("Invalid PODetails JSON for RO ID:", ro.ID);
+    //         }
+
+    //         return {
+    //             ...ro,
+    //             PONumber: poNumber,
+    //         };
+    //     });
+
+    //     console.log('RO data: ', ROCollFilter);// Debug log
+    //     setROData(normalizedRO);
+    //     const poData = buildPOWiseData(normalizedRO);
+    //     setPoWiseData(poData);
+    //     setFilteredData(normalizedRO);
+    //     setLoading(false);
+    // };
+
+    // const buildPOWiseData = (roList: any[]): POWiseRow[] => {
+    //     const poMap = new Map<string, POWiseRow>();
+
+    //     roList.forEach(ro => {
+    //         let po;
+    //         try {
+    //         po = JSON.parse(ro.PODetails)?.[0];
+    //         } catch {
+    //         return;
+    //         }
+
+    //         const key = `${po.PONumber}_${po.CostCenter}`;
+
+    //         if (!poMap.has(key)) {
+    //         poMap.set(key, {
+    //             PONumber: po.PONumber,
+    //             VendorName: po.VendorName,
+    //             CostCenter: po.CostCenter,
+    //             POStartDate: po.POStartDate,
+    //             POEndDate: po.POEndDate,
+    //             POAmount: Number(po.POAmount) || 0,
+    //             BalanceAmount: Number(po.POAmount) || 0,
+    //             ROList: []
+    //         });
+    //         }
+
+    //         const poRow = poMap.get(key)!;
+
+    //         const roAmount = Number(ro.ROAmount) || 0;
+
+    //         poRow.ROList.push({
+    //         ReqNo: ro.ReqNo,
+    //         InitiatorName: ro.InitiatorName,
+    //         Status: ro.Status,
+    //         NextApprover: ro.NextApprover ?? "-",
+    //         ROFrom: ro.ROFrom,
+    //         ROEndDate: ro.ROEndDate,
+    //         ROAmount: roAmount
+    //         });
+
+    //         poRow.BalanceAmount -= roAmount;
+    //     });
+
+    //     return Array.from(poMap.values());
+    //     };
+
+    const GetPODashboardData = async () => {
+        try {
+            setLoading(true);
+
+            // 🔹 1️⃣ Fetch PO Master List
+            const poList = await ReleaseOrderRequestsOps().getPOData(
             { column: "ID", isAscending: false },
             props,
-            ''
-        );
-        let ROCollFilter = ROColl.filter((test) => test.Status != "Draft" && test.Status != "Withdrawn" && test.Status != "Reject");
-        const normalizedRO = ROCollFilter.map((ro) => {
-            let poNumber = "-";
+            ""
+            );
 
+            // 🔹 2️⃣ Fetch RO List
+            let roList = await RORequestsOps().getIROData(
+            { column: "ID", isAscending: false },
+            props,
+            ""
+            );
+
+            // 🔹 3️⃣ Filter unwanted statuses
+            roList = roList.filter(
+            r =>
+                r.Status !== "Draft" &&
+                r.Status !== "Withdrawn" &&
+                r.Status !== "Reject"
+            );
+
+            // 🔹 4️⃣ Create RO Map (optimized lookup)
+            const roMap = new Map<string, RORow[]>();
+
+            roList.forEach(ro => {
             try {
-                const poArr = JSON.parse(ro.PODetails);
-                poNumber = poArr?.[0]?.PONumber ?? "-";
-            } catch (err) {
-                console.warn("Invalid PODetails JSON for RO ID:", ro.ID);
-            }
+                const poData = JSON.parse(ro.PODetails)?.[0];
+                if (!poData) return;
 
-            return {
-                ...ro,
-                PONumber: poNumber,
-            };
-        });
+                const key = `${poData.PONumber}_${poData.CostCenter}`;
 
-        console.log('RO data: ', ROCollFilter);// Debug log
-        setROData(normalizedRO);
-        const poData = buildPOWiseData(normalizedRO);
-        setPoWiseData(poData);
-        setFilteredData(normalizedRO);
-        setLoading(false);
-    };
+                const roAmount = Number(ro.ROAmount) || 0;
 
-    const buildPOWiseData = (roList: any[]): POWiseRow[] => {
-        const poMap = new Map<string, POWiseRow>();
+                const roItem: RORow = {
+                ReqNo: ro.ReqNo,
+                InitiatorName: ro.InitiatorName,
+                Status: ro.Status,
+                NextApprover: ro.NextApprover ?? "-",
+                ROFrom: ro.ROFrom,
+                ROEndDate: ro.ROEndDate,
+                ROAmount: roAmount
+                };
 
-        roList.forEach(ro => {
-            let po;
-            try {
-            po = JSON.parse(ro.PODetails)?.[0];
+                if (!roMap.has(key)) {
+                roMap.set(key, []);
+                }
+
+                roMap.get(key)!.push(roItem);
             } catch {
-            return;
+                console.warn("Invalid PODetails JSON for RO:", ro.ID);
             }
+            });
 
+            // 🔹 5️⃣ Build Final PO Wise Data (Master Driven)
+            const finalPOData: POWiseRow[] = poList.map(po => {
             const key = `${po.PONumber}_${po.CostCenter}`;
 
-            if (!poMap.has(key)) {
-            poMap.set(key, {
+            const roItems = roMap.get(key) || [];
+
+            const usedAmount = roItems.reduce(
+                (sum, r) => sum + (Number(r.ROAmount) || 0),
+                0
+            );
+
+            const poAmount = Number(po.POAmount) || 0;
+
+            return {
                 PONumber: po.PONumber,
                 VendorName: po.VendorName,
+                Department: po.Department,
                 CostCenter: po.CostCenter,
                 POStartDate: po.POStartDate,
                 POEndDate: po.POEndDate,
-                POAmount: Number(po.POAmount) || 0,
-                BalanceAmount: Number(po.POAmount) || 0,
-                ROList: []
-            });
-            }
-
-            const poRow = poMap.get(key)!;
-
-            const roAmount = Number(ro.ROAmount) || 0;
-
-            poRow.ROList.push({
-            ReqNo: ro.ReqNo,
-            InitiatorName: ro.InitiatorName,
-            Status: ro.Status,
-            NextApprover: ro.NextApprover ?? "-",
-            ROFrom: ro.ROFrom,
-            ROEndDate: ro.ROEndDate,
-            ROAmount: roAmount
+                POAmount: poAmount,
+                BalanceAmount: poAmount - usedAmount,
+                ROList: roItems
+            };
             });
 
-            poRow.BalanceAmount -= roAmount;
-        });
+            setPoWiseData(finalPOData);
+            setFilteredData(finalPOData);
 
-        return Array.from(poMap.values());
-        };
-
+        } catch (error) {
+            console.error("Error loading PO Dashboard:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        GetROData();
+        GetPODashboardData();
 
     }, []);
 
     useEffect(() => {
-        if (ROData.length > 0) {
+        if (poWiseData.length > 0) {
             const savedState = sessionStorage.getItem('dashboardState');
-            if (savedState) {
+
+            if (!savedState) return;
+
+            try {
                 const saved = JSON.parse(savedState);
-                setSearchTerm(saved.searchTerm || '');   // ✅ use saved.searchTerm
-                setColumnFilters(saved.columnFilters || {});
-                setCurrentPage(saved.currentPage || 1);
-                setFilterInputs(saved.filterInputs || {});
-                //applyAdvancedFiltersPageload(saved.filterInputs || {});
-                sessionStorage.removeItem('dashboardState'); // optional cleanup
+
+                setSearchTerm(saved.searchTerm ?? '');
+                setColumnFilters(saved.columnFilters ?? {});
+                setCurrentPage(saved.currentPage ?? 1);
+                setFilterInputs(saved.filterInputs ?? {});
+
+                sessionStorage.removeItem('dashboardState');
+
+            } catch (error) {
+                console.error("Invalid dashboardState in sessionStorage", error);
             }
         }
-    }, [ROData]);
+    }, [poWiseData]);
+
 
     //Filter Search based on each column 
     useEffect(() => {
@@ -257,6 +361,7 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
             const filtered = poWiseData.filter(po =>
                 po.PONumber?.toLowerCase().includes(lowerSearch) ||
                 po.VendorName?.toLowerCase().includes(lowerSearch) ||
+                po.Department?.toLowerCase().includes(lowerSearch) ||
                 po.CostCenter?.toLowerCase().includes(lowerSearch) ||
                 po.POStartDate?.toLowerCase().includes(lowerSearch) ||
                 po.POEndDate?.toLowerCase().includes(lowerSearch) 
@@ -310,6 +415,7 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
         const exportData = dataToExport.map((po) => ({
             "PO Number": po.PONumber,
             "Vendor Name": po.VendorName,
+            "Department": po.Department,
             "Cost Center": po.CostCenter,
             "PO Start Date": po.POStartDate,
             "PO End Date": po.POEndDate,
@@ -387,6 +493,7 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
                                           <th></th> {/* expand icon */}
                                           <th className="px-4 py-2">PO Number</th>
                                           <th className="px-4 py-2">Vendor Name</th>
+                                          <th className="px-4 py-2">Department</th>
                                           <th className="px-4 py-2">Cost Center</th>
                                           <th className="px-4 py-2">PO Start Date</th>
                                           <th className="px-4 py-2">PO End Date</th>
@@ -395,7 +502,7 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
                                         </tr>
                                         <tr className="bg-gray-100 text-black">
                                             <th></th>
-                                            {["PONumber", "VendorName", "CostCenter", "POStartDate", "POEndDate", "POAmount", "BalanceAmount"].map((col) => (
+                                            {["PONumber", "VendorName", "Department", "CostCenter", "POStartDate", "POEndDate", "POAmount", "BalanceAmount"].map((col) => (
                                                 <th key={col} className="px-4 py-1">
                                                     <input
                                                         type="text"
@@ -430,8 +537,9 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
                                                 <td className="px-4 py-2">{po.PONumber}</td>
                                                 <td className="px-4 py-2">{po.VendorName}</td>
                                                 <td className="px-4 py-2">{po.CostCenter}</td>
-                                                <td className="px-4 py-2">{po.POStartDate}</td>
-                                                <td className="px-4 py-2">{po.POEndDate}</td>
+                                                <td className="px-4 py-2">{po.Department}</td>
+                                                <td className="px-4 py-2">{formatDate(po.POStartDate)}</td>
+                                                <td className="px-4 py-2">{formatDate(po.POEndDate)}</td>
                                                 <td className="px-4 py-2">{formatAmount(po.POAmount)}</td>
                                                 <td className="px-4 py-2">{formatAmount(po.BalanceAmount)}</td>
                                               </tr>

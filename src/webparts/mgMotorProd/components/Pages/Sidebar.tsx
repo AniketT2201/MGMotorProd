@@ -103,7 +103,7 @@ const Sidebar = (props: IMgMotorProdProps) => {
       case 'all-requests':
         return ['/AllReqDash', '/POWiseROReport'].some(path => currentPath.includes(path)) ? 'active' : '';
       case 'Configure':
-        return ['/ForwardingUser'].some(path => currentPath.includes(path)) ? 'active' : '';
+        return ['/VendorMaster'].some(path => currentPath.includes(path)) ? 'active' : '';
       case '/Action':
         return ['/MyReqDash', '/MyActionsDashboard'].some((path) =>
           currentPath.includes(path)
@@ -208,10 +208,10 @@ const Sidebar = (props: IMgMotorProdProps) => {
             <ul className="sub-menu">
               <li>
                 <a
-                  className={getActiveClass('/ForwardingUser')}
-                  onClick={() => history.push('/ForwardingUser')}
+                  className={getActiveClass('/VendorMaster')}
+                  onClick={() => history.push('/VendorMaster')}
                 >
-                  Forwarding User
+                  Vendor Master
                 </a>
               </li>
             </ul>

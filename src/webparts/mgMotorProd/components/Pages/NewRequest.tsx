@@ -226,6 +226,8 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
   const [pofilteredData, setPOFilteredData] = useState<any[]>([]);
   const [roAmountBlurCount, setRoAmountBlurCount] = useState(0);
   const [roIntentId, setRoIntentId] = useState<number | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+
 
 
 
@@ -322,6 +324,9 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
         const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
         formikRef.current?.setFieldValue('Created', formattedDate);
         formikRef.current?.setFieldValue('Department', item[0].DepartmentCode.Department);
+        formikRef.current?.setFieldValue('Company', item[0].Company);
+        formikRef.current?.setFieldValue('Plant', item[0].OfficeCity.CompanyLocation);
+        formikRef.current?.setFieldValue('ROFrom', item[0].DepartmentCode.Department);
 
         //Copyupdateworkflow.current.push(JSON.parse('{"user":"' + item[0].FullName.Title + '","type":"initiator","required":true,"email":' + item[0].FullName.EMail +'}'))
         Copyupdateworkflow.current.push({
@@ -360,7 +365,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
             const currentEmployeeData = await EmployeeProfile(nextmanager);
             const directManager = currentEmployeeData[0].DirectManagerName;
             const departmentMatch = currentEmployeeData[0].DepartmentCode.Department === department;
-            const EmployID = currentEmployeeData[0].EmployeeId;
+            const EmployID = currentEmployeeData[0].DirectManagerCode;
  
             nextmanager = directManager.EMail;
  
@@ -414,24 +419,54 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
   }
 
   const getNAandDAId = async () => {
-    let DAId = null;
-    let DelegateApproverEmpID = null;
-    let ca = (await getuserdata(BindingWorkflow[0].email)).data.Id;
-    let na = await getuserdata(BindingWorkflow[1].email);
-    let naid = (await getuserdata(BindingWorkflow[1].email)).data.Id;
-    let naEmployeeid = await GetEmployeeID(BindingWorkflow[1].email);
-    let DelegateDataNAID = await IDelegateApproverops().getDelegateApprover(BindingWorkflow[1].email, props);
-    if (Array.isArray(DelegateDataNAID) && DelegateDataNAID.length > 0) {
-      DelegateApproverEmpID = DelegateDataNAID[0].DelegateToEmpID;
-      DAId = DelegateDataNAID[0].DelegateToId;
-    }
-    NextApproverEmail.current = na.data.Email;
-    NextApproverId.current = naid;
-    NextApproverEmployeeId.current = naEmployeeid;
-    DelegatedApproverId.current = ca;
-    DelegatedApprover.current = props.userDisplayName;
 
-  }
+    let DAId: number | null = null;
+    let DelegateApproverEmpID: number | null = null;
+
+    // 🔹 Current Approver (CA)
+    const caUser = await getuserdata(BindingWorkflow[0].email);
+    const caId = caUser?.data?.Id;
+
+    // 🔹 Next Approver (NA) - call only once
+    const naUser = await getuserdata(BindingWorkflow[1].email);
+    const naId = naUser?.data?.Id;
+    const naEmail = naUser?.data?.Email;
+
+    const naEmployeeId = await GetEmployeeID(BindingWorkflow[1].email);
+
+    // 🔹 Check Delegation
+    // const delegateData = await IDelegateApproverops().getDelegateApprover(BindingWorkflow[1].email, props);
+
+    let DelegateDataNAID = await IDelegateApproverops().getDelegateApprover(
+          BindingWorkflow[1].email,
+          props,
+        );
+        // let tda = DelegateDataNAID;
+        let forwardingDataNAID =
+          await IDelegateApproverops().getOffboardingApprover(BindingWorkflow[1].email, props);
+        let tda;
+    
+        if (forwardingDataNAID.length > 0) {
+          tda = forwardingDataNAID;
+        } else {
+          tda = DelegateDataNAID;
+        }
+
+    if (Array.isArray(tda) && tda.length > 0) {
+      DelegateApproverEmpID = tda[0]?.DelegateToEmpID;
+      DAId = tda[0]?.DelegateToId;
+    }
+
+    // 🔹 Assign Refs (IMPORTANT FIX)
+    NextApproverEmail.current = naEmail;
+    NextApproverId.current = naId;
+    NextApproverEmployeeId.current = naEmployeeId;
+
+    DelegatedApproverId.current = DAId;  // ✔ actual delegate Id
+    DelegatedApprover.current = tda[0]?.DelegateTo?.EMail || null; // ✔ actual delegate email
+
+  };
+
 
   const rewisePOBalanceAmount = async (reqNo: string) => {
     if (!reqNo) return;
@@ -537,12 +572,12 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     const steps: WorkflowStep[] = [];
     for (const u of wfItems) {
       // For testing because finance manager email is not in usermaster
-      //const empId = await GetEmployeeID(u.UserEmail);
+      const empId = await GetEmployeeID(u.UserEmail);
 
-      const empId = await GetEmployeeID(props.userEmail);
+      //const empId = await GetEmployeeID(props.userEmail);
 
       if (!empId) {
-        throw new Error(`EmpID not found for ${u.UserEmail}`);
+        throw new Error(`Employee ID not found for ${u.UserEmail}`);
       }
 
       steps.push({
@@ -610,7 +645,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
       // 🔹 Keep reference
       ExternalApprovalFlow.current = rawExternalFlow;
 
-      alert('External approval workflow loaded successfully');
+      //alert('External approval workflow loaded successfully');
 
     } catch (error: any) {
       console.error('ReadApprovalFlow_External failed:', error);
@@ -662,7 +697,8 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
         c2: '',
         c3: format(new Date(), 'dd-MM-yyyy HH:mm'),
         c4: 'Request Created',
-        c5: ''
+        c5: '',
+        c6: '',
       };
 
       // 🔹 CREATE LIST ITEM (Angular: addItem)
@@ -762,13 +798,14 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     }, 0); 
   };
 
-  const appendSummary = (action: string, remarks: string) => {
+  const appendSummary = (action: string, remarks: string, NextApprover : string, DelegateApprover: string) => {
     const entry = {
       c1: props.userDisplayName,
-      c2: '',
+      c2: NextApprover,
       c3: format(new Date(), 'dd-MM-yyyy HH:mm'),
       c4: action,
-      c5: remarks
+      c5: remarks,
+      c6: DelegateApprover
     };
 
     setSummary(prev => [...prev, entry]);
@@ -816,21 +853,36 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     let delegationUserId = null;
     let delegationEmpID = null;
 
-    const delegation = await IDelegateApproverops()
-      .getDelegateApprover(next.email, props);
+    // const delegation = await IDelegateApproverops().getDelegateApprover(next.email, props);
+     let DelegateDataNAID = await IDelegateApproverops().getDelegateApprover(
+          next.email,
+          props,
+        );
+        // let tda = DelegateDataNAID;
+        let forwardingDataNAID =
+          await IDelegateApproverops().getOffboardingApprover(next.email, props);
+        let tda;
+    
+        if (forwardingDataNAID.length > 0) {
+          tda = forwardingDataNAID;
+        } else {
+          tda = DelegateDataNAID;
+        }
 
-    if (delegation?.length > 0) {
-      delegationUserId = delegation[0].DelegateToId;
-      delegationEmpID = delegation[0].DelegateToEmpID;
-    } else {
-      alert(`No delegation found for ${next.user}`); 
-      return;
-    }
+    if (tda?.length > 0) {
+      delegationUserId = tda[0]?.DelegateToId;
+      delegationEmpID = tda[0]?.DelegateToEmpID;
+    } // else {
+    //   alert(`No delegation found for ${next.user}`); 
+    //   return;
+    // }
 
     return {
       nextApproverId: spUser.data.Id,
       delegationUserId,
-      delegationEmpID
+      delegationEmpID,
+      DelegateAppName:tda[0]?.DelegateTo?.Title,
+      NextAppName:next.user
     };
   };
 
@@ -838,7 +890,8 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     const next = BindingWorkflow[1];
     const spCrudObj = await SPCRUDOPS();
     const UserId = (await getuserdata(props.userEmail)).data.Id; 
-    const summaryJSON = appendSummary('Submitted For Approval', '');
+    const summaryJSON = appendSummary('Submitted For Approval', '',nextApprover?.NextAppName ?? null,nextApprover?.DelegateAppName ?? null);
+    
     const values = formikRef.current?.values;
 
     // 🔹 PO snapshot (even if partially filled)
@@ -857,7 +910,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
 
     const payload = {
       InitiatorNameId: UserId || null,
-      InitiatorEmployeeID: props.EmployeeId?.[0]?.EmployeeID || '',
+      InitiatorEmployeeID: props.EmployeeId[0]?.EmployeeID || '',
       Department: values.Department,
       Company: values.Company,
       Plant: values.Plant,
@@ -1013,7 +1066,8 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
       };
 
       let summaryText = '';
-
+      let nextStep ;
+      let tda;
       // 🔹 LAST APPROVER
       if (isLastApprover) {
         payload = {
@@ -1032,7 +1086,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
 
       // 🔹 INTERMEDIATE APPROVER
       else {
-        const nextStep = wf[stage + 1];
+        nextStep = wf[stage + 1];
         const spUser = await getuserdata(nextStep.email);
 
         // Next approver
@@ -1040,18 +1094,33 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
         payload.NextApproverEmpID = nextStep.EmpID;
 
         // Delegation check (Angular: isFoundDelegation)
-        const delegate = await IDelegateApproverops().getDelegateApprover(nextStep.email, props);
+        // const delegate = await IDelegateApproverops().getDelegateApprover(nextStep.email, props);
 
-        payload.DelegationApproverId = delegate?.length > 0 ? delegate[0].DelegateToId : null;
-        payload.DelegateApproverEmpID = delegate?.length > 0 ? delegate[0].DelegateToEmpID : '';
+        let DelegateDataNAID = await IDelegateApproverops().getDelegateApprover(
+          nextStep.email,
+          props,
+        );
+        // let tda = DelegateDataNAID;
+        let forwardingDataNAID =
+          await IDelegateApproverops().getOffboardingApprover(nextStep.email, props);
+        
+    
+        if (forwardingDataNAID.length > 0) {
+          tda = forwardingDataNAID;
+        } else {
+          tda = DelegateDataNAID;
+        }
+
+        payload.DelegationApproverId = tda?.length > 0 ? tda[0]?.DelegateToId : null;
+        payload.DelegateApproverEmpID = tda?.length > 0 ? tda[0]?.DelegateToEmpID : '';
 
         summaryText = DelegatedApprover.current === props.userDisplayName
-          ? 'Send to Next Approver (by Delegator)'
+          ? 'Send to Next Approver'
           : 'Send to Next Approver';
       }
 
       // 🔹 SUMMARY UPDATE
-      payload.Summary = appendSummary(summaryText, '');
+      payload.Summary = appendSummary(summaryText, '',nextStep?.user,tda[0]?.DelegateTo?.Title);
 
       // 🔹 UPDATE RO ITEM
       await spCrudObj.updateData('ROList', ReqID.current, payload, props);
@@ -1124,7 +1193,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     }
   } as const;
 
-  const processROAction = async (action: ROAction, remarks: string, updatedPurpose?: string) => {
+  const processROAction = async (action: ROAction, remarks: string, updatedPurpose?: string, NextApprover?: string, DelegateApprover?: string) => {
     try {
       const config = ACTION_CONFIG[action];
       if (!config) return;
@@ -1143,7 +1212,9 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
       if (config.updateSummary && config.summaryText) {
         payload.Summary = appendSummary(
           config.summaryText,
-          remarks
+          remarks,
+          NextApprover,
+          DelegateApprover
         );
       }
 
@@ -1301,7 +1372,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     const spCrudOps = await SPCRUDOPS();
     const EmployeeProfiledata = await spCrudOps.getRootData(
       'UserMaster',
-      'EmployeeId,Id,FullName/Title,FullName/ID,FullName/EMail,DirectManagerName/Title,DirectManagerName/ID,DirectManagerName/EMail,OfficeCity/CompanyLocation,OfficeCity/ID,DepartmentCode/Department,DepartmentCode/ID,Company',
+      'EmployeeId,Id,FullName/Title,FullName/ID,FullName/EMail,DirectManagerName/Title,DirectManagerName/ID,DirectManagerName/EMail,OfficeCity/CompanyLocation,OfficeCity/ID,DepartmentCode/Department,DepartmentCode/ID,Company,DirectManagerCode',
       'FullName,DirectManagerName,OfficeCity,DepartmentCode',
       `FullName/EMail eq '` + Email + `'`,
       { column: 'ID', isAscending: true },
@@ -1447,19 +1518,19 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     }
     switch (remarksType) {
       case 1:
-        processROAction('WITHDRAW', commonRemarks);
+        processROAction('WITHDRAW', commonRemarks,'','','');
         break;
       case 2:
-        processROAction('REWORK', commonRemarks);
+        processROAction('REWORK', commonRemarks,'','','');
         break;
       case 3:
-        processROAction('REJECT', commonRemarks);
+        processROAction('REJECT', commonRemarks,'','','');
         break;
       case 4:
-        processROAction('REMARK', commonRemarks);
+        processROAction('REMARK', commonRemarks,'','','');
         break;
       case 5:
-        processROAction('EDIT_PURPOSE', '', commonRemarks);
+        processROAction('EDIT_PURPOSE', '', commonRemarks,'','');
         break;
     }
     setCommonRemarks('');
@@ -1534,36 +1605,40 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
   }
 
   useEffect(() => {
-    if (BindingWorkflow.length > 0) {
-      displayWorkflow();
-      getNAandDAId();
-    
-      if (!formikRef.current) return;
+    const initialize = async () => {
 
-      const status = formikRef.current.values.Status;
-      const stage = Stage.current;
+      if (BindingWorkflow.length > 0) {
 
-      const isInitiator =
-        formikRef.current.values.InitiatorName === props.userDisplayName;
+        displayWorkflow();
 
-      let isValidApprover = false;
+        if (!formikRef.current) return;
 
-      // Next Approver
-      if (NextApproverEmail.current === props.userEmail) {
-        isValidApprover = true;
+        await getNAandDAId();
+
+        const status = formikRef.current.values.Status;
+        const stage = Stage.current;
+
+        const isInitiator =
+          formikRef.current.values.InitiatorName === props.userDisplayName;
+
+        let isValidApprover = false;
+
+        if (NextApproverEmail.current === props.userEmail) {
+          isValidApprover = true;
+        }
+
+        if (!isValidApprover && DelegatedApprover.current === props.userEmail) {
+          isValidApprover = true;
+        }
+
+        resolveButtons(status, stage, isInitiator, isValidApprover);
       }
+    };
 
-      // Delegation Approver
-      if (
-        !isValidApprover &&
-        DelegatedApprover.current === props.userEmail
-      ) {
-        isValidApprover = true;
-      }
+    initialize();
 
-      resolveButtons(status, stage, isInitiator, isValidApprover);
-    }
   }, [BindingWorkflow]);
+
 
 
   {/* Only count required items for arrow placement */ }
@@ -1905,24 +1980,24 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
                         </td>
                         <td colSpan={3}>
                           <label>Company</label>
-                          <Field name="Company" as="select" className="form-control">
-                            <option value="">Select Company</option>
+                          <Field name="Company" readOnly className="form-control">
+                            {/* <option value="">Select Company</option>
                             {EmployeeData.map((emp, i) => (
                               <option key={i} value={emp.Company}>
                                 {emp.Company}
                               </option>
-                            ))}
+                            ))}*/}
                           </Field>
                         </td>
                         <td colSpan={3}>
                           <label>Plant</label>
-                          <Field name="Plant" as="select" className="form-control">
-                            <option value="">Select Plant</option>
+                          <Field name="Plant" readOnly className="form-control">
+                            {/* <option value="">Select Plant</option>
                             {EmployeeData.map((emp, i) => (
                               <option key={i} value={emp.OfficeCity.CompanyLocation}>
                                 {emp.OfficeCity.CompanyLocation}
                               </option>
-                            ))}
+                            ))} */}
                           </Field>
                         </td>
                       </tr>
@@ -1930,13 +2005,13 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
                       <tr>
                         <td colSpan={3}>
                           <label>RO From</label>
-                          <Field name="ROFrom" as="select" className="form-control">
-                            <option value="">Select RO From</option>
+                          <Field name="ROFrom" readOnly className="form-control">
+                            {/* <option value="">Select RO From</option>
                             {EmployeeData.map((emp, i) => (
                               <option key={i} value={emp.DepartmentCode.Department}>
                                 {emp.DepartmentCode.Department}
                               </option>
-                            ))}
+                            ))} */}
                           </Field>
                         </td>
                       </tr>
@@ -1964,10 +2039,10 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
 
                       <tr>
                         <td colSpan={3}><label>Start Date</label><Field name="POStartDate">
-                          {({ field }) => (<input {...field} readOnly className="form-control" value={field.value ? new Date(field.value).toLocaleDateString('en-GB') : ''} />)}
+                          {({ field }) => (<input {...field} readOnly className="form-control" value={field.value ? formatDate(field.value) : ''} />)}
                         </Field></td>
                         <td colSpan={3}><label>End Date</label><Field name="POEndDate">
-                          {({ field }) => (<input {...field} readOnly className="form-control" value={field.value ? new Date(field.value).toLocaleDateString('en-GB') : ''} />)}
+                          {({ field }) => (<input {...field} readOnly className="form-control" value={field.value ? formatDate(field.value) : ''} />)}
                         </Field></td>
                         <td colSpan={3}><label>PO Amount</label><Field name="POAmount" readOnly className="form-control" /></td>
                         <td colSpan={3}><label>PO Balance</label><Field name="POBalanceAmount" readOnly className="form-control" /></td>
@@ -2102,7 +2177,8 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
                             <thead>
                               <tr>
                                 <th>Initiator/Approver</th>
-                                <th>Forwarded To</th>
+                                <th>Next Approver</th>
+                                <th>Delegate To</th>
                                 <th>Action Date</th>
                                 <th>Action</th>
                                 <th>Remarks</th>
@@ -2113,6 +2189,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
                                 <tr key={i}>
                                   <td>{row.c1}</td>
                                   <td>{row.c2}</td>
+                                  <td>{row.c6}</td>
                                   <td>{row.c3}</td>
                                   <td>{row.c4}</td>
                                   <td>{row.c5}</td>
@@ -2195,7 +2272,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
       
               {/* PO Modal */}
               <CustomModal show={showPO} onHide={() => setShowPO(false)} title="PO Details">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4" style={{display: 'flex'}}>
                   <input
                     type="text"
                     placeholder="Search..."
@@ -2208,8 +2285,24 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
                     className="fa fa-refresh cursor-pointer text-xl text-gray-700 hover:text-black"
                     onClick={resetFilters}
                     title="Reset Filters"
-                    style={{ paddingLeft: "10px" }}
+                    style={{ paddingLeft: "10px", alignSelf: 'center' }}
                   ></i>
+                  <div style={{ marginLeft: "10px" }}>
+                    <label>Department</label>
+                    <select
+                      className="form-control"
+                      value={selectedDepartment}
+                      onChange={(e) => setSelectedDepartment(e.target.value)}
+                      style={{ width: "200px" }}
+                    >
+                      <option value="">All Departments</option>
+                      {[...new Set(EmployeeData.map(emp => emp.DepartmentCode?.Department))].map((dept, i) => (
+                        <option key={i} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <table className="mg-table mg-table-bordered" id="PODateTable">
                   <colgroup>
@@ -2256,7 +2349,10 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
                     </tr>
                   </thead>
                   <tbody>
-                    {[...pofilteredData].sort((a, b) => b.ID - a.ID).map((po, index) => (
+                    {[...pofilteredData].filter(po => {
+                        if (!selectedDepartment) return true;
+                        return po.Department === selectedDepartment;
+                      }).sort((a, b) => b.ID - a.ID).map((po, index) => (
                       <tr key={index}>
                         <td>
                           <button

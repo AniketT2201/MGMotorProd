@@ -9,5 +9,6 @@ export interface IDelegateApprover {
     DelegateFromEmpID?:any,
     DelegateToEmpID?:any,
     DelegateToId?:any,
-    DelegateFromId?:any
+    DelegateFromId?:any,
+    AppList?:any
 }
