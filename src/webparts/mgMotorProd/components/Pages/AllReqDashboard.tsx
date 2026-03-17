@@ -18,6 +18,10 @@ export const AllReqDash: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     const [showFilterPopup, setShowFilterPopup] = useState(false);
     const [MovementDropdown, setMovementDropdown] = useState<any[]>([]);
     const [recordsPerPage, setRecordsPerPage] = useState(10); // default 10 records per page
+    const [ROACL, setROACL] = React.useState<any[]>([]);
+    const [AppAdmin, setAppAdmin] = React.useState(false);
+    const [Admin, setAdmin] = React.useState(false);
+    const [Editor, setEditor] = React.useState(false);
     const [filterInputs, setFilterInputs] = useState({
         ageing: "",
         movementType: "",
@@ -84,15 +88,60 @@ export const AllReqDash: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
         return date.toLocaleDateString('en-GB'); // dd/mm/yyyy
     };
 
+    async function GetROACL() {
+    const spCrudOps = await SPCRUDOPS();
+
+    const aclData = await spCrudOps.getData(
+        'ROACL',
+        'ID,Title,UserName/Title,UserName/EMail,Role,EmployeeID',
+        'UserName',
+        '',
+        { column: 'ID', isAscending: true },
+        props
+    );
+
+    const currentUserACL = aclData.filter(
+        (item) =>
+        item.UserName?.EMail === props.userEmail &&
+        item.EmployeeID === props.EmployeeId[0].EmployeeID
+    );
+
+    const isSysAdmin = currentUserACL.some(x => x.Title === "SysAdmin");
+    const isAppAdmin = currentUserACL.some(x => x.Title === "AppAdmin");
+
+    setAdmin(isSysAdmin);
+    setAppAdmin(isAppAdmin);
+    setEditor(currentUserACL.some(x => x.Role === "Editor"));
+
+    setROACL(currentUserACL);
+
+    return {
+        isSysAdmin,
+        isAppAdmin
+    };
+    }
+
     const GetROData = async () => {
         await EmployeeProfile(props.userEmail);
         setLoading(true);
+        // 🔹 1. Get ACL
+        const { isSysAdmin, isAppAdmin } = await GetROACL();
+
+        // 🔹 2. Get user department
+        const userProfile = await EmployeeProfile(props.userEmail);
+        const userDepartment = userProfile[0]?.DepartmentCode?.Department;
         const ROColl = await RORequestsOps().getIROData(
             { column: "ID", isAscending: false },
             props,
             ''
         );
         let ROCollFilter = ROColl.filter((test) => test.Status != "Draft" && test.Status != "Withdrawn" && test.Status != "Reject");
+        // 🔥 🔥 🔥 MAIN LOGIC
+        if (!isSysAdmin && !isAppAdmin) {
+            ROCollFilter = ROCollFilter.filter(
+            (item) => item.Department === userDepartment
+            );
+        }
         const normalizedRO = ROCollFilter.map((ro) => {
             let poNumber = "-";
 
@@ -339,7 +388,11 @@ export const AllReqDash: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
                                                     <td className="px-4 py-2">                                                        
                                                         <a
                                                             onClick={(e) => { e.preventDefault(); handleTitleClick(item.ID); }}
-                                                            href={`${window.location.href.split('#')[0]}#/Draft?ItemId=${item.ID}&from=AllReqDash`}
+                                                            href={
+                                                                (item.Status === 'Draft' || item.Status === 'Rework')
+                                                                    ? `${window.location.href.split('#')[0]}#/Draft?ItemId=${item.ID}&from=AllReqDash`
+                                                                    : `${window.location.href.split('#')[0]}#/ApprovalForm?ItemId=${item.ID}&from=AllReqDash`
+                                                            }
                                                             className="text-blue-600 hover:text-blue-800 underline">{item.ReqNo}
                                                         </a>
                                                     </td>

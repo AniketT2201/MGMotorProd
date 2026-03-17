@@ -19,6 +19,7 @@ import Sidebar from '../components/Pages/Sidebar';
 import { HashRouter as Router, Switch, Route, Redirect } from 'react-router-dom';
 import VendorMaster from './Pages/VendorMaster';
 import POMaster from './Pages/POMaster';
+import ROWorkflowMaster from './Pages/ROWorkflowMaster';
 
 export const MgMotorProd: React.FC<IMgMotorProdProps> = (props) => {
   // const { hasTeamsContext } = props;  
@@ -149,6 +150,11 @@ export const MgMotorProd: React.FC<IMgMotorProdProps> = (props) => {
               exact
               path="/POMaster"
               render={() => <POMaster {...props} />}
+            />
+            <Route
+              exact
+              path="/ROWorkflowMaster"
+              render={() => <ROWorkflowMaster {...props} />}
             />
           </Switch>
           {/* <Redirect to="/InitiatorLanding"></Redirect> */}

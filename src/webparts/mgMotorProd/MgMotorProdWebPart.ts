@@ -58,7 +58,7 @@ export default class MgMotorProdWebPart extends BaseClientSideWebPart<IMgMotorPr
       let AAfiltereddata = AppAdminData.filter((m) => (m.EmployeeID === itemdata[0].EmployeeID && m.AppName === 'RO'));
       let AppDatafiltered = RoACLdata.filter((m) => m.EmployeeID === itemdata[0].EmployeeID);
       let Maintfiltereddata = RoACLdata.filter((m) => m.Title === "Maintenance");
-      let SysAdmindata = RoACLdata.filter((m) => (m.EmployeeID === itemdata[0].EmployeeID && m.Role === 'SysAdmin'))
+      let SysAdmindata = RoACLdata.filter((m) => (m.EmployeeID === itemdata[0].EmployeeID && m.Title === 'SysAdmin'))
 
       // Default values
       let isAppAdmin: boolean = false;

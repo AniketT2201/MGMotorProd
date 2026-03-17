@@ -224,3 +224,14 @@
     width: 100% !important;
     max-width: 100% !important;
   } 
+
+
+/* Ensure proper stacking */
+.sidebar {
+  position: relative;
+  z-index: 1000;
+}
+
+.sub-menu {
+  z-index: 9999;
+}

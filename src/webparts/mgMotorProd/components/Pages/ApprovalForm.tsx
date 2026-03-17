@@ -1806,13 +1806,16 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
   ) {
     const buttons: ROButton[] = ["BACK"];
 
+    const wf = BindingWorkflow.filter((w) => w.required);
+    const isLastApprover = stage === wf.length - 1;
+
     // Draft / Rework – Initiator
     if ((status === "Draft" || status === "Rework") && isInitiator) {
       buttons.push("CREATE_DRAFT", "SUBMIT");
     }
 
     // Pending Approval – Initiator (stage > 0)
-    else if (status === "Pending Approval" && isInitiator && stage > 0) {
+    else if (status === "Pending Approval" && isInitiator && stage > 0 && !isLastApprover && stage !== 2) {
       buttons.push("WITHDRAW");
     }
 
@@ -2034,8 +2037,7 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
                                 className="btn btn-warning btn-init"
                                 onClick={CreateDraft}
                               >
-                                <i className="fa fa-mail-forward"></i> Create
-                                Draft
+                                <i className="fa fa-save"></i> Save
                               </button>
                             )}
 
@@ -2261,6 +2263,14 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
                             ))}
                           </Field>
                         </td>
+                        <td colSpan={6}>Note: &quot;RO From&quot; Option
+                          <ul>
+                            <li><b>Department (e.g., IT, Admin):</b> Raise RO where PR
+                              is only for individual department.</li>
+                            <li><b>Common:</b> Raise RO where PR is
+                              common irrespective of any department.</li>
+                          </ul>
+                        </td>
                       </tr>
                       <tr>
                         <th colSpan={12} className="bg-light">
@@ -2315,8 +2325,8 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
                       <tr>
                         <td colSpan={3}>
                           <label>Start Date</label>
-                          <Field name="POStartDate">
-                            {({ field }) => (
+                          <Field name="POStartDate" readOnly className="form-control">
+                            {/* {({ field }) => (
                               <input
                                 {...field}
                                 readOnly
@@ -2329,13 +2339,13 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
                                     : ""
                                 }
                               />
-                            )}
+                            )} */}
                           </Field>
                         </td>
                         <td colSpan={3}>
                           <label>End Date</label>
-                          <Field name="POEndDate">
-                            {({ field }) => (
+                          <Field name="POEndDate" readOnly className="form-control">
+                            {/* {({ field }) => (
                               <input
                                 {...field}
                                 readOnly
@@ -2348,7 +2358,7 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
                                     : ""
                                 }
                               />
-                            )}
+                            )} */}
                           </Field>
                         </td>
                         <td colSpan={3}>

@@ -103,7 +103,7 @@ const Sidebar = (props: IMgMotorProdProps) => {
       case 'all-requests':
         return ['/AllReqDash', '/POWiseROReport'].some(path => currentPath.includes(path)) ? 'active' : '';
       case 'Configure':
-        return ['/VendorMaster'].some(path => currentPath.includes(path)) ? 'active' : '';
+        return ['/VendorMaster', '/POMaster'].some(path => currentPath.includes(path)) ? 'active' : '';
       case '/Action':
         return ['/MyReqDash', '/MyActionsDashboard'].some((path) =>
           currentPath.includes(path)
@@ -176,29 +176,33 @@ const Sidebar = (props: IMgMotorProdProps) => {
           </ul>
         </li>
 
-        <li className={`nav-item has-submenu ${getActiveClass('all-requests')}`}>
-          <div className="nav-link">
-            <i className="fa fa-chart-bar" aria-hidden="true"></i> All Requests
-          </div>
-          <ul className="sub-menu">
-            <li>
-              <a
-                className={getActiveClass('/AllReqDash')}
-                onClick={() => history.push('/AllReqDash')}
-              >
-                All RO
-              </a>
-            </li>
-            <li>
-              <a
-                className={getActiveClass('/POWiseROReport')}
-                onClick={() => history.push('/POWiseROReport')}
-              >
-                PO wise RO
-              </a>
-            </li>
-          </ul>
-        </li>
+        
+          <li className={`nav-item has-submenu ${getActiveClass('all-requests')}`}>
+            <div className="nav-link">
+              <i className="fa fa-chart-bar" aria-hidden="true"></i> All Requests
+            </div>
+            <ul className="sub-menu">
+              {/* {(AppAdmin === true || Admin === true) && ( */}
+                <li>
+                  <a
+                    className={getActiveClass('/AllReqDash')}
+                    onClick={() => history.push('/AllReqDash')}
+                  >
+                    All RO
+                  </a>
+                </li>
+              {/* )} */}
+              <li>
+                <a
+                  className={getActiveClass('/POWiseROReport')}
+                  onClick={() => history.push('/POWiseROReport')}
+                >
+                  PO wise RO
+                </a>
+              </li>
+            </ul>
+          </li>
+        
 
         {(AppAdmin === true || Admin === true) && (
           <li className={`nav-item has-submenu ${getActiveClass('Configure')}`}>
@@ -214,9 +218,25 @@ const Sidebar = (props: IMgMotorProdProps) => {
                   Vendor Master
                 </a>
               </li>
+              <li>
+                <a
+                  className={getActiveClass('/POMaster')}
+                  onClick={() => history.push('/POMaster')}
+                >
+                  PO Master
+                </a>
+              </li>
+              <li>
+                <a
+                  className={getActiveClass('/ROWorkflowMaster')}
+                  onClick={() => history.push('/ROWorkflowMaster')}
+                >
+                  ROWorkFlow Master
+                </a>
+              </li>
             </ul>
-          </li>)
-        }
+          </li>
+        )}
 
         {Admin === true &&
           <li className="nav-item has-submenu settings">

@@ -43,6 +43,10 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
     const [recordsPerPage, setRecordsPerPage] = useState(10); // default 10 records per page
     const [poWiseData, setPoWiseData] = useState<POWiseRow[]>([]);
     const [expandedPOs, setExpandedPOs] = useState<Set<string>>(new Set());
+    const [ROACL, setROACL] = React.useState<any[]>([]);
+    const [AppAdmin, setAppAdmin] = React.useState(false);
+    const [Admin, setAdmin] = React.useState(false);
+    const [Editor, setEditor] = React.useState(false);
 
     const [filterInputs, setFilterInputs] = useState({
         ageing: "",
@@ -207,12 +211,51 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
     //     return Array.from(poMap.values());
     //     };
 
+    async function GetROACL() {
+        const spCrudOps = await SPCRUDOPS();
+    
+        const aclData = await spCrudOps.getData(
+            'ROACL',
+            'ID,Title,UserName/Title,UserName/EMail,Role,EmployeeID',
+            'UserName',
+            '',
+            { column: 'ID', isAscending: true },
+            props
+        );
+    
+        const currentUserACL = aclData.filter(
+            (item) =>
+            item.UserName?.EMail === props.userEmail &&
+            item.EmployeeID === props.EmployeeId[0].EmployeeID
+        );
+    
+        const isSysAdmin = currentUserACL.some(x => x.Title === "SysAdmin");
+        const isAppAdmin = currentUserACL.some(x => x.Title === "AppAdmin");
+    
+        setAdmin(isSysAdmin);
+        setAppAdmin(isAppAdmin);
+        setEditor(currentUserACL.some(x => x.Role === "Editor"));
+    
+        setROACL(currentUserACL);
+    
+        return {
+            isSysAdmin,
+            isAppAdmin
+        };
+    }
+
     const GetPODashboardData = async () => {
         try {
             setLoading(true);
+            // 🔹 1. Get ACL
+            const { isSysAdmin, isAppAdmin } = await GetROACL();
+
+            // 🔹 2. Get user department
+            const userProfile = await EmployeeProfile(props.userEmail);
+            const userDepartment = userProfile[0]?.DepartmentCode?.Department;
 
             // 🔹 1️⃣ Fetch PO Master List
-            const poList = await ReleaseOrderRequestsOps().getPOData(
+            let poList = await ReleaseOrderRequestsOps().getPOData(
             { column: "ID", isAscending: false },
             props,
             ""
@@ -232,6 +275,15 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
                 r.Status !== "Withdrawn" &&
                 r.Status !== "Reject"
             );
+            // 🔥 🔥 🔥 MAIN LOGIC
+            if (!isSysAdmin && !isAppAdmin) {
+                poList = poList.filter(
+                (item) => item.Department === userDepartment
+                );
+                roList = roList.filter(
+                (item) => item.Department === userDepartment
+                );
+            }
 
             // 🔹 4️⃣ Create RO Map (optimized lookup)
             const roMap = new Map<string, RORow[]>();
@@ -331,45 +383,44 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
 
     //Filter Search based on each column 
     useEffect(() => {
-        let filtered = poWiseData;
+
+        let filtered = [...poWiseData];
+
+        if (searchTerm) {
+            const lowerSearch = searchTerm.toLowerCase();
+
+            filtered = filtered.filter(po =>
+                po.PONumber?.toLowerCase().includes(lowerSearch) ||
+                po.VendorName?.toLowerCase().includes(lowerSearch) ||
+                po.Department?.toLowerCase().includes(lowerSearch) ||
+                po.CostCenter?.toLowerCase().includes(lowerSearch)
+            );
+        }
+
         Object.keys(columnFilters).forEach((key) => {
-            const value = columnFilters[key].toLowerCase();
+
+            const value = columnFilters[key]?.toLowerCase();
+
             if (value) {
-                filtered = filtered.filter((item) => {
+                filtered = filtered.filter(item => {
 
                     if (!item[key]) return false;
 
-                    if (key === "Created") {
+                    if (key === "POStartDate" || key === "POEndDate") {
                         return formatDate(item[key]).toLowerCase().includes(value);
                     }
 
                     return item[key].toString().toLowerCase().includes(value);
                 });
             }
+
         });
 
         setFilteredData(filtered);
         setCurrentPage(1);
-    }, [columnFilters, poWiseData]);
+        setExpandedPOs(new Set());   // ⭐ important fix
 
-    //filter based on search
-    useEffect(() => {
-        if (!searchTerm) {
-            setFilteredData(poWiseData);
-        } else {
-            const lowerSearch = searchTerm.toLowerCase();
-            const filtered = poWiseData.filter(po =>
-                po.PONumber?.toLowerCase().includes(lowerSearch) ||
-                po.VendorName?.toLowerCase().includes(lowerSearch) ||
-                po.Department?.toLowerCase().includes(lowerSearch) ||
-                po.CostCenter?.toLowerCase().includes(lowerSearch) ||
-                po.POStartDate?.toLowerCase().includes(lowerSearch) ||
-                po.POEndDate?.toLowerCase().includes(lowerSearch) 
-            );
-            setFilteredData(filtered);
-            setCurrentPage(1);
-        }
-    }, [searchTerm, poWiseData]);  // ✅ added ROData
+    }, [searchTerm, columnFilters, poWiseData]);
 
     const handleColumnFilterChange = (key: string, value: string) => {
         setColumnFilters(prev => ({ ...prev, [key]: value }));
@@ -403,35 +454,109 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
     );
 
     const exportToExcel = () => {
-        // Always export all filtered data (ignore pagination)
-        const dataToExport = filteredData;
 
-        if (dataToExport.length === 0) {
+        if (filteredData.length === 0) {
             alert("No records found to export.");
             return;
         }
 
-        // Map fields to clean column labels
-        const exportData = dataToExport.map((po) => ({
+        const rows: any[] = [];
+
+        filteredData.forEach((po) => {
+
+            // 🔹 PO HEADER ROW
+            rows.push({
             "PO Number": po.PONumber,
             "Vendor Name": po.VendorName,
             "Department": po.Department,
             "Cost Center": po.CostCenter,
-            "PO Start Date": po.POStartDate,
-            "PO End Date": po.POEndDate,
+            "PO Start Date": formatDate(po.POStartDate),
+            "PO End Date": formatDate(po.POEndDate),
             "PO Amount": formatAmount(po.POAmount),
-            "Balance Amount": po.BalanceAmount,
-            "No. of ROs": po.ROList.length
-        }));
+            "Balance Amount": formatAmount(po.BalanceAmount),
+            "Req No": "",
+            "Initiator": "",
+            "Status": "",
+            "Next Approver": "",
+            "RO From": "",
+            "RO End Date": "",
+            "RO Amount": ""
+            });
 
-        // Create sheet + workbook
-        const worksheet = XLSX.utils.json_to_sheet(exportData);
+            // 🔹 RO ROWS
+            po.ROList.forEach((ro) => {
+
+            rows.push({
+                "PO Number": "",
+                "Vendor Name": "",
+                "Department": "",
+                "Cost Center": "",
+                "PO Start Date": "",
+                "PO End Date": "",
+                "PO Amount": "",
+                "Balance Amount": "",
+                "Req No": ro.ReqNo,
+                "Initiator": ro.InitiatorName,
+                "Status": ro.Status,
+                "Next Approver": ro.NextApprover,
+                "RO From": formatDate(ro.ROFrom),
+                "RO End Date": formatDate(ro.ROEndDate),
+                "RO Amount": formatAmount(ro.ROAmount)
+            });
+
+            });
+
+            // 🔹 TOTAL ROW
+            rows.push({
+            "PO Number": "",
+            "Vendor Name": "",
+            "Department": "",
+            "Cost Center": "",
+            "PO Start Date": "",
+            "PO End Date": "",
+            "PO Amount": "",
+            "Balance Amount": "",
+            "Req No": "",
+            "Initiator": "",
+            "Status": "",
+            "Next Approver": "",
+            "RO From": "",
+            "RO End Date": "Total",
+            "RO Amount": formatAmount(
+                po.ROList.reduce((sum, r) => sum + r.ROAmount, 0)
+            )
+            });
+
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+
+        // 🔹 Apply Excel Row Grouping
+        if (!worksheet["!rows"]) worksheet["!rows"] = [];
+
+        let rowIndex = 1; // header row = 0
+
+        filteredData.forEach((po) => {
+
+            rowIndex++; // PO row
+
+            po.ROList.forEach(() => {
+            worksheet["!rows"][rowIndex] = { level: 1 }; // grouped under PO
+            rowIndex++;
+            });
+
+            worksheet["!rows"][rowIndex] = { level: 1 }; // total row
+            rowIndex++;
+
+        });
+
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "AllRequests");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "POWiseROReport");
 
-        // Save file with today’s date
-        const today = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
-        XLSX.writeFile(workbook, `RO_${today}.xlsx`);
+        const today = new Date().toISOString().slice(0, 10);
+
+        XLSX.writeFile(workbook, `POWiseROReport_${today}.xlsx`);
+
     };
 
     return (
@@ -472,7 +597,7 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
                             />
                             <button className="btn btn-warning export-btn" type="button" onClick={expandAll} style={{ marginLeft: "10px" }}>Expand</button>
                             <button className="btn btn-warning export-btn" type="button" onClick={collapseAll} style={{ marginLeft: "10px" }}>Collapse</button>
-                            {filteredData.length > 0 && (
+                            {paginatedData.length > 0 && (
                                 <button className="btn btn-warning export-btn" type="button" onClick={exportToExcel} style={{ marginLeft: "10px" }}>
                                     Export Data
                                 </button>
@@ -519,7 +644,7 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredData.map((po) => {
+                                        {paginatedData.map((po) => {
                                           const poKey = `${po.PONumber}_${po.CostCenter}`;
                                           const isExpanded = expandedPOs.has(poKey);
 
@@ -536,8 +661,8 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
 
                                                 <td className="px-4 py-2">{po.PONumber}</td>
                                                 <td className="px-4 py-2">{po.VendorName}</td>
-                                                <td className="px-4 py-2">{po.CostCenter}</td>
                                                 <td className="px-4 py-2">{po.Department}</td>
+                                                <td className="px-4 py-2">{po.CostCenter}</td>
                                                 <td className="px-4 py-2">{formatDate(po.POStartDate)}</td>
                                                 <td className="px-4 py-2">{formatDate(po.POEndDate)}</td>
                                                 <td className="px-4 py-2">{formatAmount(po.POAmount)}</td>

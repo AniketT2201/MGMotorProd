@@ -17,7 +17,7 @@ export default function ReleaseOrderRequestsOps() {
             const spOps = await spCrudOps;
             const results = await spOps.getData(
             'PO_Master_List',
-            '*,ID,VendorName,VendorCode,PONumber,POAmount,POBalanceAmount,POStartDate,POEndDate,Department,CostCenter,RefPRNo,BudgetLineItem,Title,Created,Author/Title',
+            '*,ID,VendorName,VendorCode,PONumber,PODate,POAmount,POBalanceAmount,POStartDate,POEndDate,Department,CostCenter,RefPRNo,BudgetLineItem,Title,Created,Author/Title',
             'Author',
             filter,
             sorting,
@@ -30,6 +30,7 @@ export default function ReleaseOrderRequestsOps() {
                 VendorCode: item?.VendorCode ?? null,
                 PONumber: item?.PONumber ?? null,
                 POAmount: item?.POAmount ?? null,
+                PODate: item?.PODate ?? null,
                 POBalanceAmount: item?.POBalanceAmount ?? null,
                 POStartDate: item?.POStartDate ?? null,
                 POEndDate: item?.POEndDate ?? null,
@@ -79,12 +80,18 @@ export default function ReleaseOrderRequestsOps() {
                 Summary: item?.Summary ?? null,
                 Created: item?.Created ?? null,
                 ContractorScopeDescription: item?.ContractorScopeDescription ?? null,
+                InitiatorNameId: item?.InitiatorNameId ?? null,
                 InitiatorName: item?.InitiatorName?.Title ?? null,
                 InitiatorEmail: item?.InitiatorName?.EMail ?? null,
+                InitiatorEmployeeID: item?.InitiatorEmployeeID ?? null,
+                NextApproverId: item?.NextApproverId ?? null,
                 NextApprover: item?.NextApprover?.Title ?? null,
                 NextApproverEmail: item?.NextApprover?.EMail ?? null,
+                NextApproverEmpID: item?.NextApproverEmpID ?? null,
+                DelegationApproverId: item?.DelegationApproverId ?? null,
                 DelegationApprover: item?.DelegationApprover?.Title ?? null,
                 DelegationApproverEmail: item?.DelegationApprover?.EMail ?? null,
+                DelegateApproverEmpID: item?.DelegateApproverEmpID ?? null,
                 AttachmentFiles: item.AttachmentFiles ?? null,
             }));
 
@@ -98,7 +105,6 @@ export default function ReleaseOrderRequestsOps() {
     const getROAmountTracking = async (sorting: any, props: IMgMotorProdProps, filter: string): Promise<any[]> => {
         try {
             const spOps = await spCrudOps;
-
             const results = await spOps.getData(
             'ROAmountTracking_List',
             '*,ID,Title,PONumber,RONumber,Amount,Created',

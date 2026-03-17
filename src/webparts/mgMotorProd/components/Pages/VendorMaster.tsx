@@ -20,6 +20,7 @@ export const VendorMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
     const [showFilterPopup, setShowFilterPopup] = useState(false);
     const [MovementDropdown, setMovementDropdown] = useState<any[]>([]);
     const [recordsPerPage, setRecordsPerPage] = useState(10); // default 10 records per page
+    const [originalVendorCode, setOriginalVendorCode] = useState("");
     const [filterInputs, setFilterInputs] = useState({
         ageing: "",
         movementType: "",
@@ -159,11 +160,11 @@ export const VendorMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
         } else {
             const lowerSearch = searchTerm.toLowerCase();
             const filtered = ROData.filter(item =>
-                item.Title.toLowerCase().includes(lowerSearch) ||
-                item.VendorCode.toLowerCase().includes(lowerSearch) ||
-                item.Address.toLowerCase().includes(lowerSearch) ||
-                item.ContactNo.toLowerCase().includes(lowerSearch) ||
-                item.Email.toLowerCase().includes(lowerSearch) 
+                (item.Title || "").toLowerCase().includes(lowerSearch) ||
+                (item.VendorCode || "").toLowerCase().includes(lowerSearch) ||
+                (item.Address || "").toLowerCase().includes(lowerSearch) ||
+                (item.ContactNo || "").toLowerCase().includes(lowerSearch) ||
+                (item.Email || "").toLowerCase().includes(lowerSearch)
             );
             setFilteredData(filtered);
             setCurrentPage(1);
@@ -203,7 +204,7 @@ export const VendorMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
 
     const exportToExcel = () => {
         // Always export all filtered data (ignore pagination)
-        const dataToExport = filteredData;
+        const dataToExport = [...filteredData].sort((a, b) => b.ID - a.ID);
 
         if (dataToExport.length === 0) {
             alert("No records found to export.");
@@ -222,11 +223,11 @@ export const VendorMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
         // Create sheet + workbook
         const worksheet = XLSX.utils.json_to_sheet(exportData);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "AllRequests");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "VendorMaster");
 
         // Save file with today’s date
         const today = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
-        XLSX.writeFile(workbook, `RO_${today}.xlsx`);
+        XLSX.writeFile(workbook, `VendorMaster_${today}.xlsx`);
     };
 
     const openAddPopup = () => {
@@ -245,6 +246,8 @@ export const VendorMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
     const openEditPopup = (item) => {
     setIsEdit(true);
     setSelectedId(item.ID);
+    // store original vendor code
+    setOriginalVendorCode(item.VendorCode);
     setVendorForm({
         Title: item.Title,
         VendorCode: item.VendorCode,
@@ -260,17 +263,75 @@ export const VendorMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
     setVendorForm(prev => ({ ...prev, [name]: value }));
     };
 
+    const validateForm = () => {
+      if (!vendorForm.Title) {
+        alert("Vendor Name is required");
+        return false;
+      }
+      if (!vendorForm.VendorCode) {
+        alert("Vendor Code is required");
+        return false;
+      }
+      if (!vendorForm.Address) {
+        alert("Address is required");
+        return false;
+      }
+
+      // Contact required
+      if (!vendorForm.ContactNo) {
+        alert("Contact Number is required");
+        return false;
+      }
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(vendorForm.ContactNo)) {
+        alert("Please enter a valid 10 digit Contact Number");
+        return false;
+      }
+
+      // Email required
+      if (!vendorForm.Email) {
+        alert("Email is required");
+        return false;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(vendorForm.Email)) {
+        alert("Please enter a valid Email address");
+        return false;
+      }
+
+      return true;
+    };
+
     const update = async () => {
         const spCrudObj = await SPCRUDOPS();
-        if (!vendorForm.Title || !vendorForm.VendorCode) {
-            alert("Vendor Name & Vendor Code are required");
-            return;
-        }
+        if (!validateForm()) return;
+        setLoading(true);
         try {
+            // 🔹 Check duplicate VendorCode
+            if (!isEdit || vendorForm.VendorCode !== originalVendorCode) {
+              const vendorData = await VendorRequestsOps().getIVendorMasterData(
+                  { column: "ID", isAscending: true },
+                  props,
+                  `VendorCode eq '${vendorForm.VendorCode}'`
+              );
+
+              // 🔹 Ignore same record when editing
+              const duplicateVendor = vendorData.filter(
+                  item => Number(item.ID) !== Number(selectedId)
+              );
+
+              if (duplicateVendor.length > 0) {
+                  alert("Vendor Code already exists!");
+                  setLoading(false);
+                  return;
+              }
+            }  
             if (isEdit && selectedId) {
             await spCrudObj.updateData('Vendor_Master_List', selectedId, vendorForm, props);
+            alert("Vendor details updated successfully!");
             } else {
             await spCrudObj.insertData('Vendor_Master_List', vendorForm, props);
+            alert("Vendor details added successfully!");
             }
 
             setPopupVisible(false);
@@ -278,6 +339,8 @@ export const VendorMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
         } catch (err) {
             console.error(err);
             alert("Error saving vendor");
+        } finally {
+            setLoading(false); 
         }
     };
 
@@ -301,11 +364,27 @@ export const VendorMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
                 {loading ? (
                     <div className="loading-overlay">
                         <div className="loading-content">
-                            <svg className="loading-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                            </svg>
-                            <p className="text-white text-lg">Please wait, loading data...</p>
+                        <svg
+                            className="loading-spinner"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            />
+                            <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v8H4z"
+                            />
+                        </svg>
+                        <p className="text-white text-lg">Please wait, loading data...</p>
                         </div>
                     </div>
                 ) : (
@@ -515,8 +594,10 @@ export const VendorMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
                                                             <td>Contact No.:</td>
                                                             <td>
                                                                 <input
+                                                                    type="text"
                                                                     name="ContactNo"
                                                                     className="form-control"
+                                                                    maxLength={10}
                                                                     value={vendorForm.ContactNo}
                                                                     onChange={handleInputChange}
                                                                 />

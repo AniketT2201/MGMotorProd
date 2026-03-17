@@ -2,9 +2,12 @@ import { IRO } from "../../INTERFACE/IRO";
 import { IMgMotorProdProps } from "../../../components/IMgMotorProdProps";
 import SPCRUDOPS from "../../DAL/spcrudops";
 export interface IIITRequestsOps {
-    getIVendorMasterData(props: any): Promise<any>;
+    getIVendorMasterData(sorting: any, props: IMgMotorProdProps, filter:string): Promise<any[]>;
     getRODatafilter(props: any): Promise<any>;
     getRODatabyId(ArtId: string | number, listname: string , props: IMgMotorProdProps): Promise<any[]>;
+    getIPRMasterData(sorting: any, props: IMgMotorProdProps, filter:string): Promise<any[]>;
+    getCostCenterData(sorting: any, props: IMgMotorProdProps, filter:string): Promise<any[]>;
+    getDepartmentData(sorting: any, props: IMgMotorProdProps, filter:string): Promise<any[]>;
 }
 
 export default function VendorRequestsOps() {
@@ -120,9 +123,85 @@ export default function VendorRequestsOps() {
                 });
                 return brr;
             }
-            );
+        );
     };
+
+    const getCostCenterData = async (sorting: any, props: IMgMotorProdProps, filter:string): Promise<any[]> => {
+        try {
+            const spOps = await spCrudOps;
+            const results = await spOps.getRootData(
+            'CostCenter',
+            '*,Title,Department/Title',
+            'Department',
+            filter,
+            sorting,
+            props
+            );
+
+            const roArray = results.map((item: any) => ({
+                ID: item?.ID ?? null,
+                Title: item?.Title ?? null,
+                Department: item?.Department?.Title ?? null
+            }));
+
+            return roArray;
+        } catch (error) {
+            console.error('Error fetching RO Data By Id data:', error);
+            return [];
+        }
+    };
+
+    const getDepartmentData = async (sorting: any, props: IMgMotorProdProps, filter:string): Promise<any[]> => {
+        try {
+            const spOps = await spCrudOps;
+            const results = await spOps.getRootData(
+            'Departments',
+            '*,Title',
+            '',
+            filter,
+            sorting,
+            props
+            );
+
+            const roArray = results.map((item: any) => ({
+                ID: item?.ID ?? null,
+                Title: item?.Title ?? null
+            }));
+
+            return roArray;
+        } catch (error) {
+            console.error('Error fetching RO Data By Id data:', error);
+            return [];
+        }
+    };
+
+    const getIPRMasterData = async (sorting: any, props: IMgMotorProdProps, filter:string): Promise<any[]> => {
+        try {
+            const spOps = await spCrudOps;
+            const results = await spOps.getRootData(
+            'PRList',
+            '*,ID,PRNumber,BudgetLineItem,PONumber',
+            '',
+            filter,
+            sorting,
+            props
+            );
+
+            const roArray = results.map((item: any) => ({
+                ID: item?.ID ?? null,
+                PRNumber: item?.PRNumber ?? null,
+                BudgetLineItem: item?.BudgetLineItem ?? null,
+                PONumber: item?.PONumber ?? null
+            }));
+
+            return roArray;
+        } catch (error) {
+            console.error('Error fetching RO Data By Id data:', error);
+            return [];
+        }
+    };
+
     return {
-        getIVendorMasterData, getRODatafilter, getRODatabyId
+        getIVendorMasterData, getRODatafilter, getRODatabyId, getIPRMasterData, getCostCenterData, getDepartmentData
     };
 }

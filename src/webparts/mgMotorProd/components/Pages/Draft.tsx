@@ -536,15 +536,15 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
 
   const getExternalApprovalWorkflow = async (
     amount: number,
-    refKey: string,
+    plant: string, department: string
   ) => {
     const spCrudOps = await SPCRUDOPS();
 
     const data = await spCrudOps.getRootData(
       "ROWorkFlow",
-      "ID,LowerLimit,UpperLimit,ApprovalWF/UserName,ApprovalWF/UserEmail,ApprovalWF/Title",
-      "ApprovalWF",
-      `LowerLimit le ${amount} and UpperLimit ge ${amount} and RefKey eq '${refKey}'`,
+      'ID,LowerLimit,UpperLimit,CompanyLocation/Id,CompanyLocation/CompanyLocation,Department/Id,Department/Title,UserName/Title,UserName/EMail,UserName/Id',
+      'UserName,CompanyLocation,Department',
+      `LowerLimit le ${amount} and UpperLimit ge ${amount} and CompanyLocation/CompanyLocation eq '${plant}' and Department/Title eq '${department}'`,
       { column: "ID", isAscending: true },
       props,
     );
@@ -554,7 +554,7 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
 
   const buildRawExternalFlow = (wfItems: any[]) => {
     return wfItems
-      .map((u) => `${u.UserName}|${u.UserEmail}|${u.Title}`)
+      .map((u) => `${u.Title}|${u.EMail}|"FinMgr"`)
       .join(";");
   };
 
@@ -565,24 +565,28 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
     let finMgrAdded = false; // 🔑 guard
 
     for (const u of wfItems) {
+      const email = u.EMail;
+      const name = u.Title;
+      const type = "FinMgr";
+      const normalize = (v: string) => v?.replace(/\s/g, "").toLowerCase();
       // For testing because finance manager email is not in usermaster
-      const empId = await GetEmployeeID(u.UserEmail);
+      const empId = await GetEmployeeID(u.EMail);
       // 🔒 Skip duplicate Finance Manager
-      if (u.Title === "Fin Mgr") {
+      if (normalize(type) === normalize(type)) {
         if (finMgrAdded) continue;
         finMgrAdded = true;
       }
       //const empId = await GetEmployeeID(props.userEmail);
 
       if (!empId) {
-        throw new Error(`Employee ID not found for ${u.UserEmail}`);
+        throw new Error(`Employee ID not found for ${u.EMail}`);
       }
 
       steps.push({
-        user: u.UserName,
-        type: u.Title, // MC / FIN / WH etc.
+        user: name,
+        type: type, // MC / FIN / WH etc.
         required: true,
-        email: u.UserEmail,
+        email: email,
         EmpID: empId,
       });
     }
@@ -590,80 +594,74 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
     return steps;
   };
 
-  const ReadApprovalFlow_External = async (mROAmount) => {
+  const ReadApprovalFlow_External = async (mROAmount: any) => {
     try {
+
       const amount = parseAmount(mROAmount);
       const plant = formikRef.current?.values.Plant;
       const department = formikRef.current?.values.Department;
+      const Type = "FinMgr";
+      const normalize = (v: string) => v?.replace(/\s/g, "").toLowerCase();
 
       if (!amount || !plant || !department) {
         alert("Missing RO Amount / Plant / Department");
         return;
       }
 
-      const refKey = `MG Motor-${plant}-${department}`;
-
       setLoading(true);
 
-      // 🔹 Call same Angular service
-      const results = await getExternalApprovalWorkflow(amount, refKey);
-      const hasExternalRule = results.length > 0;
+      const results = await getExternalApprovalWorkflow(amount, plant, department);
+
+      const hasExternalRule = results?.length > 0;
       HasExternalWorkflow.current = hasExternalRule;
-      if (!results || results.length === 0) {
-        alert("No external approval workflow found");
+
+      if (!hasExternalRule) {
+        newworkflow.current = [...BindingWorkflow];
+        setWorkflow(newworkflow.current);
+        //alert("No external approval workflow found.");
         return;
       }
 
-      const wfItems = results[0].ApprovalWF || [];
+      const wfItems = results.map((r: any) => r.UserName).filter(Boolean);
+
       if (wfItems.length === 0) {
-        alert("External approval workflow is empty");
+        alert("No external approval workflow found.");
+        newworkflow.current = [...BindingWorkflow];
+        setWorkflow(newworkflow.current);
         return;
       }
 
-      // 🔹 Build RAW external flow (DB)
+      // 🔹 Raw external string
       const rawExternalFlow = buildRawExternalFlow(wfItems);
 
-      // 🔹 Convert to WorkflowStep[]
+      // 🔹 Convert to workflow steps
       const externalSteps = await buildExternalWorkflowSteps(wfItems);
 
-      // 🔹 Append AFTER internal workflow
-      setWorkflow((prev) => {
-        const withoutFinMgr = prev.filter((w) => w.type !== "Fin Mgr");
+      const finMgr = externalSteps.find(e => normalize(e.type) === normalize(Type));
+      const otherExternal = externalSteps.filter(e => normalize(e.type) !== normalize(Type));
 
-        const newFinMgr = externalSteps.find((e) => e.type === "Fin Mgr");
-        const otherExternal = externalSteps.filter((e) => e.type !== "Fin Mgr");
-
-        return [
-          ...withoutFinMgr,
-          ...otherExternal,
-          ...(newFinMgr ? [newFinMgr] : []),
-        ];
-      });
-
-      const finMgr = externalSteps.find((e) => e.type === "Fin Mgr");
-      const otherExternal = externalSteps.filter((e) => e.type !== "Fin Mgr");
-
+      // 🔹 Merge workflows
       newworkflow.current = [
-        ...(BindingWorkflow || []).filter((w) => w.type !== "Fin Mgr"),
+        ...(BindingWorkflow || []).filter(w => normalize(w.type) !== normalize(Type)),
         ...otherExternal,
-        ...(finMgr ? [finMgr] : []),
+        ...(finMgr ? [finMgr] : [])
       ];
 
-      console.log("New Workflow with External:", newworkflow.current);
+      setWorkflow(newworkflow.current);
 
-      // 🔹 Save ONLY external flow (Angular behavior)
-      const spCrudObj = await SPCRUDOPS();
-      // await spCrudObj.updateData('ROList', ReqID.current, { ApprovalFlow_External: rawExternalFlow }, props);
+      console.log("Final Workflow:", newworkflow.current);
 
-      // 🔹 Keep reference
       ExternalApprovalFlow.current = rawExternalFlow;
 
-      //alert("External approval workflow loaded successfully");
     } catch (error: any) {
+
       console.error("ReadApprovalFlow_External failed:", error);
       alert(error.message || "Failed to load external approval workflow");
+
     } finally {
+
       setLoading(false);
+
     }
   };
 
@@ -675,6 +673,9 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
   // Placeholder function for CreateDraft logic
   //--------------------------------------------------------------------------------------------//
   const CreateDraft = async () => {
+    if (!(await validateBeforeSubmit())) {
+      return;
+    }
     try {
       const spCrudObj = await SPCRUDOPS();
       const UserId = (await getuserdata(props.userEmail)).data.Id;
@@ -1797,46 +1798,65 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
     setWorkflowJSX(wf);
   };
 
+  useEffect(() => {
+  if (EmployeeData.length > 0 && !selectedDepartment) {
+
+    // Example: if logged-in user department needed
+    const userDept = EmployeeData[0]?.DepartmentCode?.Department;
+
+    if (userDept) {
+      setSelectedDepartment(userDept);
+      formikRef.current?.setFieldValue("ROFrom", userDept);
+    }
+  }
+}, [EmployeeData]);
+
   //Filter Search based on each column
   useEffect(() => {
-    let filtered = POList;
-    Object.keys(columnFilters).forEach((key) => {
-      const value = columnFilters[key].toLowerCase();
-      if (value) {
-        filtered = filtered.filter((item) => {
-          if (!item[key]) return false;
-          if (key === "Created") {
-            return formatDate(item[key]).toLowerCase().includes(value);
-          }
-          return item[key].toString().toLowerCase().includes(value);
-        });
-      }
-    });
-    setPOFilteredData(filtered);
-  }, [columnFilters]);
+  let filtered = POList;
 
-  //filter based on search
-  useEffect(() => {
-    if (!searchTerm) {
-      setPOFilteredData(POList);
-    } else {
-      const lowerSearch = searchTerm.toLowerCase();
-      const filtered = POList.filter(
-        (item) =>
-          item.PONumber?.toLowerCase().includes(lowerSearch) ||
-          item.VendorName?.toLowerCase().includes(lowerSearch) ||
-          item.VendorCode?.toLowerCase().includes(lowerSearch) ||
-          item.CostCenter?.toLowerCase().includes(lowerSearch) ||
-          item.POStartDate?.toLowerCase().includes(lowerSearch) ||
-          item.POEndDate?.toLowerCase().includes(lowerSearch) ||
-          item.POAmount?.toString().includes(lowerSearch) ||
-          item.POBalanceAmount?.toString().includes(lowerSearch) ||
-          item.RefPRNo?.toLowerCase().includes(lowerSearch) ||
-          item.BudgetLineItem?.toLowerCase().includes(lowerSearch),
-      );
-      setPOFilteredData(filtered);
+  // 🔹 Department filter
+  if (selectedDepartment) {
+    filtered = filtered.filter(
+      po => po.Department === selectedDepartment
+    );
+  }
+
+  // 🔹 Column filters
+  Object.keys(columnFilters).forEach((key) => {
+    const value = columnFilters[key].toLowerCase();
+    if (value) {
+      filtered = filtered.filter((item) => {
+        if (!item[key]) return false;
+        if (key === "Created") {
+          return formatDate(item[key]).toLowerCase().includes(value);
+        }
+        return item[key].toString().toLowerCase().includes(value);
+      });
     }
-  }, [searchTerm, POList]);
+  });
+
+  // 🔹 Search filter
+  if (searchTerm) {
+    const lowerSearch = searchTerm.toLowerCase();
+    filtered = filtered.filter(
+      (item) =>
+        item.PONumber?.toLowerCase().includes(lowerSearch) ||
+        item.VendorName?.toLowerCase().includes(lowerSearch) ||
+        item.VendorCode?.toLowerCase().includes(lowerSearch) ||
+        item.CostCenter?.toLowerCase().includes(lowerSearch) ||
+        item.POStartDate?.toLowerCase().includes(lowerSearch) ||
+        item.POEndDate?.toLowerCase().includes(lowerSearch) ||
+        item.POAmount?.toString().includes(lowerSearch) ||
+        item.POBalanceAmount?.toString().includes(lowerSearch) ||
+        item.RefPRNo?.toLowerCase().includes(lowerSearch) ||
+        item.BudgetLineItem?.toLowerCase().includes(lowerSearch)
+    );
+  }
+
+  setPOFilteredData(filtered);
+
+}, [POList, columnFilters, searchTerm, selectedDepartment]);
 
   const handleColumnFilterChange = (key: string, value: string) => {
     setColumnFilters((prev) => ({ ...prev, [key]: value }));
@@ -1977,8 +1997,7 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
                                 className="btn btn-warning btn-init"
                                 onClick={CreateDraft}
                               >
-                                <i className="fa fa-mail-forward"></i> Create
-                                Draft
+                                <i className="fa fa-save"></i> Save
                               </button>
                             )}
 
@@ -2185,21 +2204,27 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
                       <tr>
                         <td colSpan={3}>
                           <label>RO From</label>
-                          <Field
-                            name="ROFrom"
-                            readOnly
-                            className="form-control"
-                          >
-                            {/* <option value="">Select RO From</option>
+                          <Field name="ROFrom" as="select" className="form-control"
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              formikRef.current.setFieldValue("ROFrom", value);
+                              setSelectedDepartment(value); // force re-render
+                            }}>
+                            <option value="">Common</option>
                             {EmployeeData.map((emp, i) => (
-                              <option
-                                key={i}
-                                value={emp.DepartmentCode.Department}
-                              >
+                              <option key={i} value={emp.DepartmentCode.Department}>
                                 {emp.DepartmentCode.Department}
                               </option>
-                            ))} */}
+                            ))}
                           </Field>
+                        </td>
+                        <td colSpan={6}>Note: &quot;RO From&quot; Option
+                          <ul>
+                            <li><b>Department (e.g., IT, Admin):</b> Raise RO where PR
+                              is only for individual department.</li>
+                            <li><b>Common:</b> Raise RO where PR is
+                              common irrespective of any department.</li>
+                          </ul>
                         </td>
                       </tr>
                       <tr>
@@ -2651,7 +2676,7 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
                     title="Reset Filters"
                     style={{ paddingLeft: "10px", alignSelf: 'center' }}
                   ></i>
-                  <div style={{ marginLeft: "10px" }}>
+                  {/* <div style={{ marginLeft: "10px" }}>
                     <label>Department</label>
                     <select
                       className="form-control"
@@ -2666,7 +2691,7 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
                         </option>
                       ))}
                     </select>
-                  </div>
+                  </div> */}
                 </div>
                 <table className="mg-table mg-table-bordered" id="PODateTable">
                   <colgroup>

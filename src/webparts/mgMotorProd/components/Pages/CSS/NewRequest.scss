@@ -766,3 +766,57 @@ select.form-control.mt-2 {
 .auto-height-textarea {
   height: auto !important;
 }
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.6) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.modal-contentone {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  min-width: 800px;
+  height: 500px;
+  overflow-y: auto;
+}
+.modal-actions {
+  margin-top: 15px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.pcontainer{
+  padding: 0 !important;
+    max-width: 100% !important;
+    margin-left: 10px !important;
+}
+
+.btn-warning{
+  white-space: nowrap;
+}
+
+.highlighted {
+  background-color: #10a2e6 !important; /* light blue */
+}
+
+.required{
+  color: #f00;
+}
+.small-action-column {
+  width: 40px !important;
+  min-width: 40px !important;
+}
+
+.shadow-md tr td.small-action-column {
+  width: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+}

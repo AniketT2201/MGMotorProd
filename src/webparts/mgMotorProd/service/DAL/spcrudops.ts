@@ -10,8 +10,11 @@ export interface ISPCRUDOPS {
     getData(listName: string, columnsToRetrieve: string, columnsToExpand: string, filters: string, orderby: { column: string, isAscending: boolean}, props: IMgMotorProdProps): Promise<any>;    
     getRootData(listName: string, columnsToRetrieve: string, columnsToExpand: string, filters: string, orderby: { column: string, isAscending: boolean}, props: IMgMotorProdProps): Promise<any>;
     insertData(listName: string, data: any, props: IMgMotorProdProps): Promise<any>;
+    insertRootData(listName: string, data: any, props: IMgMotorProdProps): Promise<any>;
     updateData(listName: string, itemId: number, data: any, props: IMgMotorProdProps): Promise<any>;
+    updateRootData(listName: string, itemId: number, data: any, props: IMgMotorProdProps): Promise<any>;
     deleteData(listName: string, itemId: number, props: IMgMotorProdProps): Promise<any>;
+    deleteRootData(listName: string, itemId: number, props: IMgMotorProdProps): Promise<any>;
     getListInfo(listName: string, props: IMgMotorProdProps): Promise<any>;
     getListData(listName: string, columnsToRetrieve: string, props: IMgMotorProdProps): Promise<any>;
     batchInsert(listName: string, data: any, props: IMgMotorProdProps): Promise<any>;
@@ -78,14 +81,26 @@ class SPCRUDOPSImpl implements ISPCRUDOPS {
         const web = Web(props.currentSPContext.pageContext.web.absoluteUrl);
         return await web.lists.getByTitle(listName).items.add(data);
     }
+    async insertRootData(listName: string, data: any, props: IMgMotorProdProps): Promise<any> {
+        const web = Web(props.currentSPContext.pageContext.site.absoluteUrl);
+        return await web.lists.getByTitle(listName).items.add(data);
+    }
 
     async updateData(listName: string, itemId: number, data: any, props: IMgMotorProdProps): Promise<any> {
         const web = Web(props.currentSPContext.pageContext.web.absoluteUrl);
         return await web.lists.getByTitle(listName).items.getById(itemId).update(data);
     }
+    async updateRootData(listName: string, itemId: number, data: any, props: IMgMotorProdProps): Promise<any> {
+        const web = Web(props.currentSPContext.pageContext.site.absoluteUrl);
+        return await web.lists.getByTitle(listName).items.getById(itemId).update(data);
+    }
 
     async deleteData(listName: string, itemId: number, props: IMgMotorProdProps): Promise<any> {
         const web = Web(props.currentSPContext.pageContext.web.absoluteUrl);
+        return await web.lists.getByTitle(listName).items.getById(itemId).recycle();
+    }
+    async deleteRootData(listName: string, itemId: number, props: IMgMotorProdProps): Promise<any> {
+        const web = Web(props.currentSPContext.pageContext.site.absoluteUrl);
         return await web.lists.getByTitle(listName).items.getById(itemId).recycle();
     }
 
