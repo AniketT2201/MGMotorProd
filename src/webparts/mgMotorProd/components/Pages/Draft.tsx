@@ -366,7 +366,7 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
             const directManager = currentEmployeeData[0].DirectManagerName;
             const departmentMatch =
               currentEmployeeData[0].DepartmentCode.Department === department;
-            const EmployID = currentEmployeeData[0].EmployeeId;
+            const EmployID = await GetEmployeeID(currentEmployeeData[0].DirectManagerName.EMail);
 
             nextmanager = directManager.EMail;
 
@@ -793,27 +793,84 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
   //--------------------------------------------------------------------------------------------//
   // End of Placeholder function for CreateDraft logic
   //--------------------------------------------------------------------------------------------//
-  const preparePOListWithBalance = (
-    poList: any[],
-    roAmtList: any[],
-    department: string,
-  ) => {
-    return poList.map((po) => {
-      const used = roAmtList.reduce((sum, r) => {
-        if (
-          r.PONumber === po.PONumber &&
-          r.RONumber?.includes(`RO/${department}`)
-        ) {
-          sum += Number(r.Amount);
-        }
-        return sum;
-      }, 0);
+  // const preparePOListWithBalance = ( poList: any[], roAmtList: any[], ROFrom: string, department: string ) => { 
+  //   const edata: any[] = [];
+  //   // 1️⃣ Filter POs based on ROFrom and add SelectPO
+  //   if (ROFrom && ROFrom !== "") {
+  //     // Department case
+  //     poList.forEach((po) => {
+  //       if (po.Department === department) {
+  //         po.SelectPO = po.PONumber + po.CostCenter;
+  //         edata.push(po);
+  //       }
+  //     });
+  //   } else {
+  //     // Common case
+  //     poList.forEach((po) => {
+  //       if (po.Department === "Common") {
+  //         po.SelectPO = po.PONumber + po.CostCenter;
+  //         edata.push(po);
+  //       }
+  //     });
+  //   }
 
-      return {
-        ...po,
-        POBalanceAmount: Number(po.POAmount) - used,
-      };
+  //   // 2️⃣ Calculate POBalanceAmount for all POs
+  //   poList.forEach((po) => {
+  //     if (roAmtList && roAmtList.length > 0) {
+  //       const deptPrefix = ROFrom && ROFrom !== "" ? `RO/${department}` : "RO/Common";
+
+  //       // Sum of RO amounts for this PO and department
+  //       const balance = roAmtList
+  //         .filter((ro) => ro.PONumber === po.PONumber && ro.RONumber?.includes(deptPrefix))
+  //         .reduce((sum, ro) => sum + Number(ro.Amount || 0), 0);
+
+  //       po.POBalanceAmount = Number(po.POAmount) - balance;
+  //     } else {
+  //       po.POBalanceAmount = Number(po.POAmount);
+  //     }
+  //   });
+
+  //   return edata; // only the filtered POs
+  // };
+  const preparePOListWithBalance = (poList: any[], roList: any[], ROFrom: string, department: string) => {
+    const edata: any[] = [];
+    // 🔹 1️⃣ Build RO Map (PO + CostCenter आधारित)
+    const roMap = new Map<string, number>();
+
+    roList.forEach(ro => {
+      try {
+        const poArray = JSON.parse(ro.PODetails) || [];
+        poArray.forEach((poData: any) => {
+          const key = `${poData.PONumber}_${poData.CostCenter}`;
+          const amount = Number(ro.ROAmount) || 0;
+          if (!roMap.has(key)) {
+            roMap.set(key, 0);
+          }
+          roMap.set(key, roMap.get(key)! + amount);
+        });
+      } catch {
+        console.warn("Invalid PODetails JSON:", ro.ID);
+      }
     });
+    // 🔹 2️⃣ Filter PO + Calculate Balance
+    poList.forEach(po => {
+      // 👉 Filter logic (same as your existing)
+      const isDeptMatch = ROFrom && ROFrom !== ""
+        ? po.Department === department
+        : po.Department === "Common";
+
+      if (!isDeptMatch) return;
+      const key = `${po.PONumber}_${po.CostCenter}`;
+      const poAmount = Number(po.POAmount) || 0;
+      const usedAmount = roMap.get(key) || 0;
+      const balance = Math.max(0, poAmount - usedAmount);
+      edata.push({
+        ...po,
+        SelectPO: po.PONumber + po.CostCenter,
+        POBalanceAmount: balance
+      });
+    });
+    return edata;
   };
 
   const appendSummary = (
@@ -887,10 +944,10 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
             await IDelegateApproverops().getOffboardingApprover(next.email, props);
           let tda;
       
-          if (forwardingDataNAID.length > 0) {
+          if (forwardingDataNAID?.length > 0) {
             tda = forwardingDataNAID;
           } else {
-            tda = DelegateDataNAID;
+            tda = DelegateDataNAID || [];
           }
   
       if (tda?.length > 0) {
@@ -1479,6 +1536,7 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
       updateInitiatordata.current = Initiatordata;
       setEmployeeData(Initiatordata);
       if (Stage.current === 0) {
+        let roList = await RORequestsOps().getIROData({ column: "ID", isAscending: false }, props, "");
         const poList = await ReleaseOrderRequestsOps().getPOData(
           { column: "ID", isAscending: true },
           props,
@@ -1492,12 +1550,8 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
         console.log("PO List:", poList);
         console.log("RO Amount List:", roAmtList);
         const department = Initiatordata[0]?.DepartmentCode?.Department;
-        const preparedPOList = preparePOListWithBalance(
-          poList,
-          roAmtList,
-          department,
-        );
-        setPOList(preparedPOList);
+        setROData(roList);
+        setPOList(poList);
         setROAmtList(roAmtList);
       }
       await GetSiteWiseApproval();
@@ -1713,23 +1767,29 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
   ) {
     const buttons: ROButton[] = ["BACK"];
 
+    const wf = BindingWorkflow.filter((w) => w.required);
+    const isLastApprover = stage === wf.length - 1;
+
     // Draft / Rework – Initiator
     if ((status === "Draft" || status === "Rework") && isInitiator) {
       buttons.push("CREATE_DRAFT", "SUBMIT");
     }
 
     // Pending Approval – Initiator (stage > 0)
-    else if (status === "Pending Approval" && isInitiator && stage > 0) {
+    else if (status === "Pending Approval" && !isLastApprover && stage > 0 && !isValidApprover) {
       buttons.push("WITHDRAW");
     }
 
     // Pending Approval – Approver
-    else if (status === "Pending Approval" && isValidApprover && !isInitiator) {
+    else if (status === "Pending Approval" && isValidApprover) {
       buttons.push("APPROVE", "REWORK", "REJECT", "REMARKS");
 
       if (stage === 1) {
         buttons.push("EDIT_PURPOSE"); // CR-73
       }
+      // if (!isLastApprover) {
+      //   buttons.push("WITHDRAW");
+      // }
     }
 
     setVisibleButtons(buttons);
@@ -1799,64 +1859,90 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
   };
 
   useEffect(() => {
-  if (EmployeeData.length > 0 && !selectedDepartment) {
-
-    // Example: if logged-in user department needed
-    const userDept = EmployeeData[0]?.DepartmentCode?.Department;
-
-    if (userDept) {
-      setSelectedDepartment(userDept);
-      formikRef.current?.setFieldValue("ROFrom", userDept);
+  
+    let filtered = [...POList];
+  
+    // 🔹 Department filter
+    if (selectedDepartment) {
+      filtered = filtered.filter(
+        item => item.Department === selectedDepartment
+      );
     }
-  }
-}, [EmployeeData]);
-
-  //Filter Search based on each column
-  useEffect(() => {
-  let filtered = POList;
-
-  // 🔹 Department filter
-  if (selectedDepartment) {
-    filtered = filtered.filter(
-      po => po.Department === selectedDepartment
-    );
-  }
-
-  // 🔹 Column filters
-  Object.keys(columnFilters).forEach((key) => {
-    const value = columnFilters[key].toLowerCase();
-    if (value) {
-      filtered = filtered.filter((item) => {
-        if (!item[key]) return false;
-        if (key === "Created") {
-          return formatDate(item[key]).toLowerCase().includes(value);
-        }
-        return item[key].toString().toLowerCase().includes(value);
-      });
-    }
-  });
-
-  // 🔹 Search filter
-  if (searchTerm) {
-    const lowerSearch = searchTerm.toLowerCase();
-    filtered = filtered.filter(
-      (item) =>
+  
+    // 🔹 Active PO filter
+    const today = new Date();
+    today.setHours(0,0,0,0);
+  
+    filtered = filtered.filter((item) => {
+      if (!item.POEndDate) return false;
+  
+      const endDate = new Date(item.POEndDate);
+      endDate.setHours(0,0,0,0);
+  
+      return endDate >= today;
+    });
+  
+    // 🔹 Column filters
+    Object.keys(columnFilters).forEach((key) => {
+      const value = columnFilters[key]?.toLowerCase();
+  
+      if (value) {
+        filtered = filtered.filter((item) => {
+  
+          if (!item[key]) return false;
+  
+          if (key === "Created") {
+            return formatDate(item[key])
+              .toLowerCase()
+              .includes(value);
+          }
+  
+          return item[key]
+            .toString()
+            .toLowerCase()
+            .includes(value);
+        });
+      }
+    });
+  
+    // 🔹 Search filter
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+  
+      filtered = filtered.filter(item =>
         item.PONumber?.toLowerCase().includes(lowerSearch) ||
         item.VendorName?.toLowerCase().includes(lowerSearch) ||
         item.VendorCode?.toLowerCase().includes(lowerSearch) ||
         item.CostCenter?.toLowerCase().includes(lowerSearch) ||
-        item.POStartDate?.toLowerCase().includes(lowerSearch) ||
-        item.POEndDate?.toLowerCase().includes(lowerSearch) ||
-        item.POAmount?.toString().includes(lowerSearch) ||
-        item.POBalanceAmount?.toString().includes(lowerSearch) ||
         item.RefPRNo?.toLowerCase().includes(lowerSearch) ||
-        item.BudgetLineItem?.toLowerCase().includes(lowerSearch)
+        item.BudgetLineItem?.toLowerCase().includes(lowerSearch) ||
+        item.POAmount?.toString().includes(lowerSearch) ||
+        item.POBalanceAmount?.toString().includes(lowerSearch)
+      );
+    }
+    const roFrom = formikRef.current?.values?.ROFrom;
+    // 🔹 Calculate PO Balance
+    const updatedPOList = preparePOListWithBalance(
+      filtered,
+      ROData,
+      roFrom,
+      selectedDepartment
     );
-  }
-
-  setPOFilteredData(filtered);
-
-}, [POList, columnFilters, searchTerm, selectedDepartment]);
+  
+    setPOFilteredData(updatedPOList);
+  
+  }, [
+    POList,
+    columnFilters,
+    searchTerm,
+    selectedDepartment
+  ]);
+  
+    useEffect(() => {
+    if (formikRef.current?.values?.ROFrom) {
+      setSelectedDepartment(formikRef.current.values.ROFrom);
+    }
+  }, [formikRef.current?.values?.ROFrom]);
 
   const handleColumnFilterChange = (key: string, value: string) => {
     setColumnFilters((prev) => ({ ...prev, [key]: value }));
@@ -2030,7 +2116,7 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
                                 className="btn btn-warning btn-withdrawn"
                                 onClick={() => SetCommentsFor(1, "Withdrawn")}
                               >
-                                <i className="fa fa-times"></i> Withdrawn
+                                <i className="fa fa-times"></i> Withdraw
                               </button>
                             )}
 
@@ -2041,7 +2127,7 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
                                 className="btn btn-warning btn-approver"
                                 onClick={Approved}
                               >
-                                <i className="fa fa-check"></i> Approved
+                                <i className="fa fa-check"></i> Approve
                               </button>
                             )}
 

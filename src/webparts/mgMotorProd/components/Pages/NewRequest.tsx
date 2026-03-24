@@ -365,7 +365,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
             const currentEmployeeData = await EmployeeProfile(nextmanager);
             const directManager = currentEmployeeData[0].DirectManagerName;
             const departmentMatch = currentEmployeeData[0].DepartmentCode.Department === department;
-            const EmployID = currentEmployeeData[0].DirectManagerCode;
+            const EmployID = await GetEmployeeID(currentEmployeeData[0].DirectManagerName.EMail);
  
             nextmanager = directManager.EMail;
  
@@ -568,93 +568,112 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
       .join(';');
   };
 
-  const buildExternalWorkflowSteps = async (wfItems: any[]): Promise<WorkflowStep[]> => {
-    const steps: WorkflowStep[] = [];
-    for (const u of wfItems) {
-      const name = u.Title;
-      const email = u.EMail;
-      // For testing because finance manager email is not in usermaster
-      const empId = await GetEmployeeID(email);
-
-      //const empId = await GetEmployeeID(props.userEmail);
-
-      if (!empId) {
-        throw new Error(`Employee ID not found for ${email}`);
-      }
-
-      steps.push({
-        user: name,
-        type: "FinMgr",          // MC / FIN / WH etc.   
-        required: true,
-        email: email,
-        EmpID: empId
-      });
-    }
-
-    return steps;
-  };
+  const buildExternalWorkflowSteps = async (
+      wfItems: any[],
+    ): Promise<WorkflowStep[]> => {
+      const steps: WorkflowStep[] = [];
+      let finMgrAdded = false; // 🔑 guard
   
-  const ReadApprovalFlow_External = async (mROAmount: any) => {
-    try {
-      const amount = parseAmount(mROAmount);
-      const plant = formikRef.current?.values.Plant;
-      const department = formikRef.current?.values.Department;
-
-      if (!amount || !plant || !department) {
-        alert("Missing RO Amount / Plant / Department");
-        return;
+      for (const u of wfItems) {
+        const email = u.EMail;
+        const name = u.Title;
+        const type = "FinMgr";
+        const normalize = (v: string) => v?.replace(/\s/g, "").toLowerCase();
+        // For testing because finance manager email is not in usermaster
+        const empId = await GetEmployeeID(u.EMail);
+        // 🔒 Skip duplicate Finance Manager
+        if (normalize(type) === normalize(type)) {
+          if (finMgrAdded) continue;
+          finMgrAdded = true;
+        }
+        //const empId = await GetEmployeeID(props.userEmail);
+  
+        if (!empId) {
+          throw new Error(`Employee ID not found for ${u.EMail}`);
+        }
+  
+        steps.push({
+          user: name,
+          type: type, // MC / FIN / WH etc.
+          required: true,
+          email: email,
+          EmpID: empId,
+        });
       }
-
-      setLoading(true);
-
-      // 🔹 Get external workflow
-      const results = await getExternalApprovalWorkflow(amount, plant, department);
-
-      const hasExternalRule = results?.length > 0;
-      HasExternalWorkflow.current = hasExternalRule;
-
-      let externalSteps: WorkflowStep[] = [];
-      let rawExternalFlow = "";
-
-      if (hasExternalRule) {
-
+  
+      return steps;
+    };
+  
+    const ReadApprovalFlow_External = async (mROAmount: any) => {
+      try {
+  
+        const amount = parseAmount(mROAmount);
+        const plant = formikRef.current?.values.Plant;
+        const department = formikRef.current?.values.Department;
+        const Type = "FinMgr";
+        const normalize = (v: string) => v?.replace(/\s/g, "").toLowerCase();
+  
+        if (!amount || !plant || !department) {
+          alert("Missing RO Amount / Plant / Department");
+          return;
+        }
+  
+        setLoading(true);
+  
+        const results = await getExternalApprovalWorkflow(amount, plant, department);
+  
+        const hasExternalRule = results?.length > 0;
+        HasExternalWorkflow.current = hasExternalRule;
+  
+        if (!hasExternalRule) {
+          newworkflow.current = [...BindingWorkflow];
+          setWorkflow(newworkflow.current);
+          //alert("No external approval workflow found.");
+          return;
+        }
+  
         const wfItems = results.map((r: any) => r.UserName).filter(Boolean);
-
-        // 🔹 Alert if rule exists but no approver
+  
         if (wfItems.length === 0) {
           alert("No external approval workflow found.");
-        } 
-        else {
-          rawExternalFlow = buildRawExternalFlow(wfItems);
-          externalSteps = await buildExternalWorkflowSteps(wfItems);
+          newworkflow.current = [...BindingWorkflow];
+          setWorkflow(newworkflow.current);
+          return;
         }
-      } else {
-        alert("No external approval workflow found.");
+  
+        // 🔹 Raw external string
+        const rawExternalFlow = buildRawExternalFlow(wfItems);
+  
+        // 🔹 Convert to workflow steps
+        const externalSteps = await buildExternalWorkflowSteps(wfItems);
+  
+        const finMgr = externalSteps.find(e => normalize(e.type) === normalize(Type));
+        const otherExternal = externalSteps.filter(e => normalize(e.type) !== normalize(Type));
+  
+        // 🔹 Merge workflows
+        newworkflow.current = [
+          ...(BindingWorkflow || []).filter(w => normalize(w.type) !== normalize(Type)),
+          ...otherExternal,
+          ...(finMgr ? [finMgr] : [])
+        ];
+  
+        setWorkflow(newworkflow.current);
+  
+        console.log("Final Workflow:", newworkflow.current);
+  
+        ExternalApprovalFlow.current = rawExternalFlow;
+  
+      } catch (error: any) {
+  
+        console.error("ReadApprovalFlow_External failed:", error);
+        alert(error.message || "Failed to load external approval workflow");
+  
+      } finally {
+  
+        setLoading(false);
+  
       }
-
-      // 🔹 Decide final workflow
-      if (externalSteps.length > 0) {
-        newworkflow.current = [...BindingWorkflow, ...externalSteps];
-      } 
-      else {
-        newworkflow.current = [...BindingWorkflow];
-      }
-
-      // 🔹 Update UI workflow
-      setWorkflow(newworkflow.current);
-      console.log("Final Workflow:", newworkflow.current);
-
-      // 🔹 Save external flow reference
-      ExternalApprovalFlow.current = rawExternalFlow;
-    }
-    catch (error: any) {
-      console.error("ReadApprovalFlow_External failed:", error);
-      alert(error.message || "Failed to load external approval workflow");
-    }
-    finally {
-      setLoading(false);
-    }
-  };
+    };
 
   //--------------------------------------------------------------------------------------------//
   // End of Placeholder function for Creating External Workflow logic 
@@ -772,46 +791,85 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
   //--------------------------------------------------------------------------------------------//
   // End of Placeholder function for CreateDraft logic 
   //--------------------------------------------------------------------------------------------//
-  const preparePOListWithBalance = ( poList: any[], roAmtList: any[], ROFrom: string, department: string ) => { 
+  // const preparePOListWithBalance = ( poList: any[], roAmtList: any[], ROFrom: string, department: string ) => { 
+  //   const edata: any[] = [];
+  //   // 1️⃣ Filter POs based on ROFrom and add SelectPO
+  //   if (ROFrom && ROFrom !== "") {
+  //     // Department case
+  //     poList.forEach((po) => {
+  //       if (po.Department === department) {
+  //         po.SelectPO = po.PONumber + po.CostCenter;
+  //         edata.push(po);
+  //       }
+  //     });
+  //   } else {
+  //     // Common case
+  //     poList.forEach((po) => {
+  //       if (po.Department === "Common") {
+  //         po.SelectPO = po.PONumber + po.CostCenter;
+  //         edata.push(po);
+  //       }
+  //     });
+  //   }
+
+  //   // 2️⃣ Calculate POBalanceAmount for all POs
+  //   poList.forEach((po) => {
+  //     if (roAmtList && roAmtList.length > 0) {
+  //       const deptPrefix = ROFrom && ROFrom !== "" ? `RO/${department}` : "RO/Common";
+
+  //       // Sum of RO amounts for this PO and department
+  //       const balance = roAmtList
+  //         .filter((ro) => ro.PONumber === po.PONumber && ro.RONumber?.includes(deptPrefix))
+  //         .reduce((sum, ro) => sum + Number(ro.Amount || 0), 0);
+
+  //       po.POBalanceAmount = Number(po.POAmount) - balance;
+  //     } else {
+  //       po.POBalanceAmount = Number(po.POAmount);
+  //     }
+  //   });
+
+  //   return edata; // only the filtered POs
+  // };
+  const preparePOListWithBalance = (poList: any[], roList: any[], ROFrom: string, department: string) => {
     const edata: any[] = [];
+    // 🔹 1️⃣ Build RO Map (PO + CostCenter आधारित)
+    const roMap = new Map<string, number>();
 
-  // 1️⃣ Filter POs based on ROFrom and add SelectPO
-  if (ROFrom && ROFrom !== "") {
-    // Department case
-    poList.forEach((po) => {
-      if (po.Department === department) {
-        po.SelectPO = po.PONumber + po.CostCenter;
-        edata.push(po);
+    roList.forEach(ro => {
+      try {
+        const poArray = JSON.parse(ro.PODetails) || [];
+        poArray.forEach((poData: any) => {
+          const key = `${poData.PONumber}_${poData.CostCenter}`;
+          const amount = Number(ro.ROAmount) || 0;
+          if (!roMap.has(key)) {
+            roMap.set(key, 0);
+          }
+          roMap.set(key, roMap.get(key)! + amount);
+        });
+      } catch {
+        console.warn("Invalid PODetails JSON:", ro.ID);
       }
     });
-  } else {
-    // Common case
-    poList.forEach((po) => {
-      if (po.Department === "Common") {
-        po.SelectPO = po.PONumber + po.CostCenter;
-        edata.push(po);
-      }
+    // 🔹 2️⃣ Filter PO + Calculate Balance
+    poList.forEach(po => {
+      // 👉 Filter logic (same as your existing)
+      const isDeptMatch = ROFrom && ROFrom !== ""
+        ? po.Department === department
+        : po.Department === "Common";
+
+      if (!isDeptMatch) return;
+      const key = `${po.PONumber}_${po.CostCenter}`;
+      const poAmount = Number(po.POAmount) || 0;
+      const usedAmount = roMap.get(key) || 0;
+      const balance = Math.max(0, poAmount - usedAmount);
+      edata.push({
+        ...po,
+        SelectPO: po.PONumber + po.CostCenter,
+        POBalanceAmount: balance
+      });
     });
-  }
-
-  // 2️⃣ Calculate POBalanceAmount for all POs
-  poList.forEach((po) => {
-    if (roAmtList && roAmtList.length > 0) {
-      const deptPrefix = ROFrom && ROFrom !== "" ? `RO/${department}` : "RO/Common";
-
-      // Sum of RO amounts for this PO and department
-      const balance = roAmtList
-        .filter((ro) => ro.PONumber === po.PONumber && ro.RONumber?.includes(deptPrefix))
-        .reduce((sum, ro) => sum + Number(ro.Amount || 0), 0);
-
-      po.POBalanceAmount = Number(po.POAmount) - balance;
-    } else {
-      po.POBalanceAmount = Number(po.POAmount);
-    }
-  });
-
-  return edata; // only the filtered POs
-};
+    return edata;
+  };
   
   const calculateUsedAmount = ( poNumber: string, currentRONumber?: string) => { 
     return ROAmtList.reduce((sum, item) => { 
@@ -847,7 +905,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     if (!Copyupdateworkflow.current || Copyupdateworkflow.current.length === 0)
       errors.push('Unable to Submit Request\nYour workflow missing for RO application, Contact Administrator for further details.');
 
-    if (HasExternalWorkflow.current && !ExternalApprovalFlow.current)
+    if (!ExternalApprovalFlow.current)
       errors.push('Missing External Approval Flow');
 
     if (!formikRef.current?.values.ROFrom)
@@ -889,10 +947,10 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
           await IDelegateApproverops().getOffboardingApprover(next.email, props);
         let tda;
     
-        if (forwardingDataNAID.length > 0) {
+        if (forwardingDataNAID?.length > 0) {
           tda = forwardingDataNAID;
         } else {
-          tda = DelegateDataNAID;
+          tda = DelegateDataNAID || [];
         }
 
     if (tda?.length > 0) {
@@ -916,7 +974,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     const next = BindingWorkflow[1];
     const spCrudObj = await SPCRUDOPS();
     const UserId = (await getuserdata(props.userEmail)).data.Id; 
-    const summaryJSON = appendSummary('Submitted For Approval', '',nextApprover?.NextAppName ?? null,nextApprover?.DelegateAppName ?? null);
+    const summaryJSON = appendSummary('Submitted For Approval', '',nextApprover?.NextAppName ?? "",nextApprover?.DelegateAppName ?? "");
     
     const values = formikRef.current?.values;
 
@@ -1416,13 +1474,14 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
       updateInitiatordata.current = Initiatordata;
       setEmployeeData(Initiatordata);
       if (Stage.current === 0) {
+        let roList = await RORequestsOps().getIROData({ column: "ID", isAscending: false }, props, "");
         const poList = await ReleaseOrderRequestsOps().getPOData({ column: 'ID', isAscending: true }, props,``);
         const roAmtList = await ReleaseOrderRequestsOps().getROAmountTracking({ column: 'ID', isAscending: true }, props,`Title eq 'Active'`);
         console.log('PO List:', poList);
         console.log('RO Amount List:', roAmtList);
         const department = Initiatordata[0]?.DepartmentCode?.Department;
         const roFrom = formikRef.current?.values.ROFrom;
-        
+        setROData(roList);
         setPOList(poList);
         setROAmtList(roAmtList);
       }
@@ -1604,6 +1663,9 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
   function resolveButtons( status: string, stage: number, isInitiator: boolean, isValidApprover: boolean) {
     const buttons: ROButton[] = ['BACK'];
 
+    const wf = BindingWorkflow.filter((w) => w.required);
+    const isLastApprover = stage === wf.length - 1;
+
     // New Request – Initiator
     if ((status !== 'Draft' && status !== 'Rework' && status !== 'Pending Approval') && isInitiator) {
       buttons.push('CREATE_DRAFT', 'SUBMIT');
@@ -1615,17 +1677,20 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     }
 
     // Pending Approval – Initiator (stage > 0)
-    else if (status === 'Pending Approval' && isInitiator && stage > 0) {
+    else if (status === 'Pending Approval' && stage > 0 && !isLastApprover && !isValidApprover) {
       buttons.push('WITHDRAW');
     }
 
     // Pending Approval – Approver
-    else if (status === 'Pending Approval' && isValidApprover  && !isInitiator) {
+    else if (status === 'Pending Approval' && isValidApprover) {
       buttons.push('APPROVE', 'REWORK', 'REJECT', 'REMARKS');
 
       if (stage === 1) {
         buttons.push('EDIT_PURPOSE'); // CR-73
       }
+      // if (!isLastApprover) {
+      //   buttons.push("WITHDRAW");
+      // }
     }
 
     setVisibleButtons(buttons);
@@ -1757,7 +1822,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
   // 🔹 Calculate PO Balance
   const updatedPOList = preparePOListWithBalance(
     filtered,
-    ROAmtList,
+    ROData,
     roFrom,
     selectedDepartment
   );
@@ -1942,7 +2007,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
                                 className="btn btn-warning btn-withdrawn"
                                 onClick={() => SetCommentsFor(1, 'Withdrawn')}
                               >
-                                <i className="fa fa-times"></i> Withdrawn
+                                <i className="fa fa-times"></i> Withdraw
                               </button>
                             )}
 
@@ -1953,7 +2018,7 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
                                 className="btn btn-warning btn-approver"
                                 onClick={Approved}
                               >
-                                <i className="fa fa-check"></i> Approved
+                                <i className="fa fa-check"></i> Approve
                               </button>
                             )}
 

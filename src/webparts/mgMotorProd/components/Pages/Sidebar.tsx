@@ -17,6 +17,7 @@ const Sidebar = (props: IMgMotorProdProps) => {
   const [AppAdmin, setAppAdmin] = React.useState(false);
   const [Admin, setAdmin] = React.useState(false);
   const [Editor, setEditor] = React.useState(false);
+  const [FinMgr, setFinMgr] = React.useState(false);
 
   const username = props.userDisplayName;
   const activeByOverride = React.useMemo(() => {
@@ -74,6 +75,9 @@ const Sidebar = (props: IMgMotorProdProps) => {
     }
     if (Userfiltereddata.some((test) => test.Title === "AppAdmin")) {
       setAppAdmin(true);
+    }
+    if (Userfiltereddata.some((test) => test.Title === "FinMgr")) {
+      setFinMgr(true);
     }
 
     console.log(Userfiltereddata);
@@ -204,7 +208,7 @@ const Sidebar = (props: IMgMotorProdProps) => {
           </li>
         
 
-        {(AppAdmin === true || Admin === true) && (
+        {(AppAdmin === true || Admin === true || FinMgr === true) && (
           <li className={`nav-item has-submenu ${getActiveClass('Configure')}`}>
             <div className="nav-link">
               <i className="fa fa-gears" aria-hidden="true"></i> Configure

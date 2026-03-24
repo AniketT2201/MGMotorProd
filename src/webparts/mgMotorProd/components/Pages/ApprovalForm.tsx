@@ -1129,7 +1129,7 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
 
       let summaryText = "";
       let nextStep;
-      let tda;
+      let tda: any[] = [];
       // 🔹 LAST APPROVER
       if (isLastApprover) {
         payload = {
@@ -1173,16 +1173,16 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
             props,
           );        
 
-        if (forwardingDataNAID.length > 0) {
+        if (forwardingDataNAID?.length > 0) {
           tda = forwardingDataNAID;
         } else {
-          tda = DelegateDataNAID;
+          tda = DelegateDataNAID || [];
         }
 
         payload.DelegationApproverId =
-          tda?.length > 0 ? tda[0]?.DelegateToId : null;
+          tda.length > 0 ? tda[0]?.DelegateToId : null;
         payload.DelegateApproverEmpID =
-          tda?.length > 0 ? tda[0]?.DelegateToEmpID : "";
+          tda.length > 0 ? tda[0]?.DelegateToEmpID : "";
 
         summaryText =
           DelegatedApproverEmployeeId.current ===
@@ -1190,9 +1190,11 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
             ? "Send to Next Approver (by Delegator)"
             : "Send to Next Approver";
       }
+      const nextUser = nextStep?.user || "";
+      const delegateUser = tda?.[0]?.DelegateTo?.Title || "";
 
       // 🔹 SUMMARY UPDATE
-      payload.Summary = appendSummary(summaryText, "",nextStep?.user ?? null,tda?.[0]?.DelegateTo?.Title ?? null);
+      payload.Summary = appendSummary(summaryText, "",nextUser,delegateUser);
 
       // 🔹 UPDATE RO ITEM
       await spCrudObj.updateData("ROList", ReqID.current, payload, props);
@@ -1815,17 +1817,20 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
     }
 
     // Pending Approval – Initiator (stage > 0)
-    else if (status === "Pending Approval" && isInitiator && stage > 0 && !isLastApprover && stage !== 2) {
+    else if (status === "Pending Approval" && stage > 0 && !isLastApprover && !isValidApprover) {
       buttons.push("WITHDRAW");
     }
 
     // Pending Approval – Approver
-    else if (status === "Pending Approval" && isValidApprover && !isInitiator) {
+    else if (status === "Pending Approval" && isValidApprover) {
       buttons.push("APPROVE", "REWORK", "REJECT", "REMARKS");
 
       if (stage === 1) {
         buttons.push("EDIT_PURPOSE"); // CR-73
       }
+      // if (!isLastApprover) {
+      //   buttons.push("WITHDRAW");
+      // }
     }
 
     setVisibleButtons(buttons);
@@ -1885,14 +1890,15 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
   }
   const displayWorkflow = () => {
     let wf = [];
-
+    const status = formikRef.current?.values.Status;
     BindingWorkflow.forEach((m, i) => {
       if (m.required === true) {
         const isActive =
           i === Stage.current ? "activeApprover" : "overrideStage";
+        const statusClass = status === "Reject" ? "rejectedFlow" : "";
         wf.push(
           <React.Fragment key={i}>
-            <ul className="main-menu">
+            <ul className={`main-menu ${statusClass}`}>
               <li className={`${m.type} ${isActive}`.trim()}>{m.user}</li>
             </ul>
           </React.Fragment>,
@@ -2070,7 +2076,7 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
                                 className="btn btn-warning btn-withdrawn"
                                 onClick={() => SetCommentsFor(1, "Withdrawn")}
                               >
-                                <i className="fa fa-times"></i> Withdrawn
+                                <i className="fa fa-times"></i> Withdraw
                               </button>
                             )}
 
@@ -2081,7 +2087,7 @@ export const ApprovalForm: React.FC<IMgMotorProdProps> = (props: IMgMotorProdPro
                                 className="btn btn-warning btn-approver"
                                 onClick={Approved}
                               >
-                                <i className="fa fa-check"></i> Approved
+                                <i className="fa fa-check"></i> Approve
                               </button>
                             )}
 

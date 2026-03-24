@@ -93,7 +93,7 @@ export const ROWorkflowMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorPro
             "ROACL",
             "*,ID,Title,Role,UserName/Id,UserName/Title,UserName/EMail",
             "UserName",
-            `Role eq 'FinMgr'`,
+            `Title eq 'FinMgr'`,
             {column:"ID",isAscending:true},
             props
             );
@@ -268,7 +268,7 @@ export const ROWorkflowMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorPro
                                             <th className="px-4 py-2">CompanyLocation</th>
                                             <th className="px-4 py-2">LowerLimit</th>
                                             <th className="px-4 py-2">UpperLimit</th>
-                                            <th className="px-4 py-2">userName</th>
+                                            <th className="px-4 py-2">UserName</th>
                                             <th className="px-4 py-2">Edit </th>
                                             <th className="px-4 py-2">Delete</th>
 
@@ -453,7 +453,7 @@ export const ROWorkflowMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorPro
                                             <Field type="number" name="UpperLimit" className="form-control" />
                                         </div>
                                         <div className="form-group">
-                                            <label>userName</label>
+                                            <label>UserName</label>
                                             <Field as="select" name="userName" className="form-control">
                                                 <option value="">Select</option>
                                                 {finMgrData.map(f=>(

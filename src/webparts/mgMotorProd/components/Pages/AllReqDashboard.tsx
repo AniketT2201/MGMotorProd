@@ -22,6 +22,7 @@ export const AllReqDash: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
     const [AppAdmin, setAppAdmin] = React.useState(false);
     const [Admin, setAdmin] = React.useState(false);
     const [Editor, setEditor] = React.useState(false);
+    const [FinMgr, setFinMgr] = React.useState(false);
     const [filterInputs, setFilterInputs] = useState({
         ageing: "",
         movementType: "",
@@ -108,16 +109,19 @@ export const AllReqDash: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
 
     const isSysAdmin = currentUserACL.some(x => x.Title === "SysAdmin");
     const isAppAdmin = currentUserACL.some(x => x.Title === "AppAdmin");
+    const isFinMgr   = currentUserACL.some(x => x.Title === "FinMgr");
 
     setAdmin(isSysAdmin);
     setAppAdmin(isAppAdmin);
     setEditor(currentUserACL.some(x => x.Role === "Editor"));
+    setFinMgr(isFinMgr);
 
     setROACL(currentUserACL);
 
     return {
         isSysAdmin,
-        isAppAdmin
+        isAppAdmin,
+        isFinMgr
     };
     }
 
@@ -125,7 +129,7 @@ export const AllReqDash: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
         await EmployeeProfile(props.userEmail);
         setLoading(true);
         // 🔹 1. Get ACL
-        const { isSysAdmin, isAppAdmin } = await GetROACL();
+        const { isSysAdmin, isAppAdmin, isFinMgr } = await GetROACL();
 
         // 🔹 2. Get user department
         const userProfile = await EmployeeProfile(props.userEmail);
@@ -137,7 +141,7 @@ export const AllReqDash: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
         );
         let ROCollFilter = ROColl.filter((test) => test.Status != "Draft" && test.Status != "Withdrawn" && test.Status != "Reject");
         // 🔥 🔥 🔥 MAIN LOGIC
-        if (!isSysAdmin && !isAppAdmin) {
+        if (!isSysAdmin && !isAppAdmin && !isFinMgr) {
             ROCollFilter = ROCollFilter.filter(
             (item) => item.Department === userDepartment
             );

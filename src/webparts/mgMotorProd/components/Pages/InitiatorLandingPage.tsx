@@ -61,10 +61,10 @@ const InitiatorLanding: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps)
       {/* Main Content */}
       <div id="contentPage" className="container-fluid p-0">
         <div className="info-page">
-          <div className="h2 text-center">Welcome to Release Order System</div>
+          <div className="h2 text-center">Welcome to <b>Procure Flow</b> (Release Order)</div>
           <hr />
           <p className="text-left mt-8 text-muted">
-            The <b>Procure Flow</b> (Release Order System) aims to replace manual, error-prone tracking
+            The <b>Procure Flow</b> (Release Order) aims to replace manual, error-prone tracking
             of Release Orders against Master Purchase Orders. Currently, monitoring the
             "Burn Rate"  of a PO and ensuring that work orders do not exceed the contracted
             amount is a significant administrative challenge.

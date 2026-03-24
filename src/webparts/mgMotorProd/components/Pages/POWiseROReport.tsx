@@ -47,6 +47,7 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
     const [AppAdmin, setAppAdmin] = React.useState(false);
     const [Admin, setAdmin] = React.useState(false);
     const [Editor, setEditor] = React.useState(false);
+    const [FinMgr, setFinMgr] = React.useState(false);
 
     const [filterInputs, setFilterInputs] = useState({
         ageing: "",
@@ -231,16 +232,19 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
     
         const isSysAdmin = currentUserACL.some(x => x.Title === "SysAdmin");
         const isAppAdmin = currentUserACL.some(x => x.Title === "AppAdmin");
+        const isFinMgr   = currentUserACL.some(x => x.Title === "FinMgr");
     
         setAdmin(isSysAdmin);
         setAppAdmin(isAppAdmin);
         setEditor(currentUserACL.some(x => x.Role === "Editor"));
+        setFinMgr(isFinMgr);
     
         setROACL(currentUserACL);
     
         return {
             isSysAdmin,
-            isAppAdmin
+            isAppAdmin,
+            isFinMgr
         };
     }
 
@@ -248,7 +252,7 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
         try {
             setLoading(true);
             // 🔹 1. Get ACL
-            const { isSysAdmin, isAppAdmin } = await GetROACL();
+            const { isSysAdmin, isAppAdmin, isFinMgr} = await GetROACL();
 
             // 🔹 2. Get user department
             const userProfile = await EmployeeProfile(props.userEmail);
@@ -276,7 +280,7 @@ export const POWiseROReport: React.FC<IMgMotorProdProps> = (props: IMgMotorProdP
                 r.Status !== "Reject"
             );
             // 🔥 🔥 🔥 MAIN LOGIC
-            if (!isSysAdmin && !isAppAdmin) {
+            if (!isSysAdmin && !isAppAdmin && !isFinMgr) {
                 poList = poList.filter(
                 (item) => item.Department === userDepartment
                 );
