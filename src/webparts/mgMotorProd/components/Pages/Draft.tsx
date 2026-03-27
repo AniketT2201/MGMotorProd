@@ -1550,7 +1550,8 @@ export const Draft: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps) => 
         console.log("PO List:", poList);
         console.log("RO Amount List:", roAmtList);
         const department = Initiatordata[0]?.DepartmentCode?.Department;
-        setROData(roList);
+        let roFilteredData = roList.filter(m => m.Status !== "Reject" && m.Status !== "Rework" &&m.Status !== "Withdrawn"); 
+        setROData(roFilteredData);
         setPOList(poList);
         setROAmtList(roAmtList);
       }
