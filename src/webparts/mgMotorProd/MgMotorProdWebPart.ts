@@ -48,7 +48,7 @@ export default class MgMotorProdWebPart extends BaseClientSideWebPart<IMgMotorPr
 
       const RoACLdata = await spCrudOps.getData(
         'ROACL',
-        'Title,UserName/EMail,Role,EmployeeID',
+        'Title,UserName/EMail,Role,EmployeeID,Status',
         'UserName',
         '',
         { column: 'ID', isAscending: true },
