@@ -1481,7 +1481,8 @@ export const NewRequest: React.FC<IMgMotorProdProps> = (props: IMgMotorProdProps
         console.log('RO Amount List:', roAmtList);
         const department = Initiatordata[0]?.DepartmentCode?.Department;
         const roFrom = formikRef.current?.values.ROFrom;
-        setROData(roList);
+        let roFilteredData = roList.filter(m => m.Status !== "Reject" && m.Status !== "Rework" &&m.Status !== "Withdrawn"); 
+        setROData(roFilteredData);
         setPOList(poList);
         setROAmtList(roAmtList);
       }

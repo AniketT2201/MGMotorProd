@@ -291,12 +291,12 @@ export const ROWorkflowMaster: React.FC<IMgMotorProdProps> = (props: IMgMotorPro
                                                     <td className="px-4 py-2">{item.UserName?.Title}
                                                     </td>
                                                     <td className="text-center">
-                                                        <a onClick={(e) => editDepartment(item)}>
+                                                        <a onClick={(_e) => editDepartment(item)}>
                                                             <img src={Pencil} alt="" width={15} height={15} />
                                                         </a>
                                                     </td>
                                                     <td className="text-center small-action-column">
-                                                         <a onClick={(e) => deleteDepartment(item.ID)}>
+                                                         <a onClick={(_e) => deleteDepartment(item.ID)}>
                                                             <img src={Delete} alt="" width={15} height={15}/>
                                                         </a>
                                                     </td>
